@@ -1,0 +1,13 @@
+'use strict';
+const {test,after}=require('node:test');
+const assert=require('node:assert/strict');
+const server=require('../server');
+const {once}=require('node:events');
+let base;
+test('start',async()=>{server.listen(0,'127.0.0.1');await once(server,'listening');base='http://127.0.0.1:'+server.address().port;assert.ok(base)});
+test('index HTML',async()=>{const r=await fetch(base);assert.equal(r.status,200);const html=await r.text();assert.match(html,/cv16IntegratedTest/);assert.match(html,/cv16SearchGoogle/)});
+test('health',async()=>{const r=await fetch(base+'/api/places/health');assert.equal(r.status,200);const data=await r.json();assert.equal(data.ok,true);assert.equal(data.module,'prospeccao-v16')});
+test('search status without key',async()=>{const r=await fetch(base+'/api/places/search');assert.equal(r.status,200);assert.equal((await r.json()).configured,false)});
+test('search refuses calls without keys',async()=>{const r=await fetch(base+'/api/places/search',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({niche:'barbearia',city:'São Paulo',state:'SP'})});assert.equal(r.status,503)});
+test('invalid JSON and unknown route handled',async()=>{const a=await fetch(base+'/api/places/search',{method:'POST',headers:{'Content-Type':'application/json'},body:'{' });assert.equal(a.status,400);const b=await fetch(base+'/not-a-route');assert.equal(b.status,404)});
+after(()=>{server.close()});
