@@ -1,8 +1,8 @@
 {
   "name": "convya-ai",
-  "version": "16.0.0",
+  "version": "17.0.0",
   "private": true,
-  "description": "Convya AI V16 - CRM de prospecção e Google Places",
+  "description": "Convya AI V17 - test WhatsApp Cloud API on Railway",
   "engines": {
     "node": ">=20"
   },
