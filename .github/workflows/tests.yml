@@ -1,0 +1,21 @@
+name: Convya checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check server and routes
+        run: |
+          node --check server.js
+          node --check api/whatsapp.js
+          node --check api/places/search.js
+      - name: Run test suite
+        run: npm test
