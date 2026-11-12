@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WhatsApp real | Convya AI</title>
+<style>
+:root{color-scheme:dark;--bg:#0b111a;--card:#162530;--field:#0e1d29;--line:#344e5c;--green:#b9fb69;--text:#edf6fb;--muted:#a7becb}*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,Segoe UI,sans-serif}main{max-width:1240px;padding:26px 20px 60px;margin:auto}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:24px}
+a{color:var(--green);text-decoration:none}h1{font-size:clamp(24px,3vw,33px);margin:0}h2{margin:0 0 13px;font-size:19px}p{line-height:1.65}
+.caption{color:var(--muted);font-size:12px;line-height:1.6}.tag{display:inline-block;color:var(--green);background:#263d32;padding:7px 10px;border-radius:30px;font-size:12px;font-weight:750}
+.grid{display:grid;grid-template-columns:350px minmax(0,1fr);gap:16px}.panel{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:19px}
+label{font-size:12px;color:var(--muted);display:block;margin:14px 0 5px}input,textarea,select{width:100%;padding:12px;background:var(--field);border:1px solid #49606c;border-radius:9px;color:var(--text);font:inherit}
+input:focus,textarea:focus{outline:2px solid var(--green)}textarea{min-height:98px;resize:vertical}
+button{cursor:pointer;border:0;border-radius:9px;background:var(--green);color:#102019;padding:11px 14px;font:inherit;font-weight:750}
+button.alt{background:#2a3b49;color:var(--text);border:1px solid #4a606b}button:disabled{opacity:.5;cursor:default}
+.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}.actions button{flex:1}
+.item{padding:11px 0;border-bottom:1px solid #314853;color:var(--muted)}.item b{color:var(--text)}
+.notice{padding:12px;border-radius:10px;background:#283d43;color:#dbe9e9;font-size:12px;line-height:1.65;margin:12px 0}
+.warning{background:#423326;color:#fce2ad}.error{color:#ffb0a1;font-weight:700;min-height:18px;font-size:12px;margin:8px 0}
+.chat{height:410px;overflow-y:auto;background:#101f2b;border:1px solid var(--line);padding:18px;border-radius:13px}
+.bubble{max-width:78%;padding:11px 13px;border-radius:12px;margin-bottom:12px;line-height:1.6;overflow-wrap:anywhere;background:#294451}
+.bubble.out{margin-left:auto;background:#34533d}.bubble.sim{border:1px dashed #698367}
+.small{font-size:10px;color:#bad1c8;display:block;margin-top:5px}
+.tabs{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}.tabs button{padding:9px 13px}.tabs button.sel{outline:2px solid #b9fb69}#realbox,#demobox{min-height:410px}
+.instructions{margin-top:16px}.instructions ol{margin:8px 0;padding-left:19px;line-height:1.75}.instructions li{margin-bottom:7px}
+code{font-size:12px;color:#c3f3a0;overflow-wrap:anywhere}
+.sectionTitle{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+@media(max-width:800px){.grid{grid-template-columns:1fr}.chat{height:340px}main{padding:16px 11px 36px}.panel{padding:14px}}
+</style></head>
+<body><main>
+<header><div><a href="/">← Voltar ao CRM</a><h1>WhatsApp <span style="color:var(--green)">real</span></h1><div class="caption">Envio e recebimento pelo canal oficial da Meta • Homologação V17</div></div><span class="tag" id="topstatus">Não conectado</span></header>
+<div class="notice warning"><b>Dois modos diferentes:</b> simulação usa dados fictícios e <b>não</b> chega ao celular. Conversa real usa o número de teste do WhatsApp Cloud API da Meta e seu próprio telefone como destinatário, depois de configurada a API. Não é conexão por QR do WhatsApp pessoal.</div>
+<div class="grid">
+<section class="panel">
+<h2>1. Configuração da conversa real</h2>
+<p class="caption">A senha fica só nesta aba e é enviada exclusivamente ao seu servidor Railway. Os tokens de acesso à Meta ficam nas variáveis privadas do Railway, nunca nesta página.</p>
+<label for="admin">Senha de administrador da Convya</label>
+<input id="admin" type="password" autocomplete="off" placeholder="CONVYA_WA_ADMIN_KEY">
+<div class="actions"><button id="connect">Verificar integração</button><button class="alt" id="refresh">Atualizar mensagens</button></div>
+<div id="err" class="error" role="status" aria-live="polite"></div>
+<div id="state" class="item">Nenhuma verificação realizada.</div>
+<div class="item"><b>URL do webhook Meta:</b><div><code id="webhook"></code></div><button class="alt" id="copyWebhook" style="margin-top:8px">Copiar webhook</button></div>
+<label for="phone">Seu telefone de teste (DDI + DDD)</label>
+<input id="phone" type="tel" inputmode="tel" placeholder="Ex.: 5511999999999">
+<div class="notice">Antes do primeiro envio, cadastre e confirme esse telefone em <b>WhatsApp → API Setup → To</b> no painel da Meta.</div>
+<div class="actions"><button id="template">Enviar hello_world</button></div>
+<label for="message">Responder pela Convya</label>
+<textarea id="message" maxlength="1000" placeholder="Depois de responder no seu WhatsApp pessoal, digite uma mensagem aqui..."></textarea>
+<div class="actions"><button id="send">Enviar resposta</button></div>
+<p class="caption">Texto livre exige uma resposta recente do telefone destinatário (janela de 24 horas). O template hello_world inicia o primeiro contato de teste.</p>
+</section>
+<section class="panel">
+<div class="sectionTitle"><h2>2. Caixa de mensagens</h2><span class="caption" id="last">Nenhuma mensagem</span></div>
+<div class="tabs"><button id="realTab" class="sel alt">Conversa real</button><button id="demoTab" class="alt">Simulação fictícia</button></div>
+<div id="realbox"><div id="realMessages" class="chat"><div class="caption">Conecte sua Meta Cloud API para visualizar as mensagens reais aqui.</div></div>
+<p class="caption">As mensagens são recebidas por webhook assinado pela Meta. Neste primeiro MVP, o histórico fica temporariamente na memória do servidor e se perde em reinícios ou deploys.</p></div>
+<div id="demobox" hidden><div id="demoMessages" class="chat"></div><label for="demoText">Mensagem de teste local</label><div class="actions"><input id="demoText" placeholder="Escreva qualquer coisa para simular"><button id="demoSend">Simular resposta</button></div><p class="caption">Nenhuma mensagem simulada usa a API Meta ou gera cobrança.</p></div>
+</section></div>
+<section class="panel instructions"><h2>Conexão inicial com a Meta — uma vez só</h2>
+<ol>
+<li>Entre em <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer">Meta for Developers</a>, crie/abra um aplicativo empresarial e adicione o produto <b>WhatsApp</b>. Em API Setup, use o <b>número de teste</b>.</li>
+<li>No serviço <b>convya-ai → Variables</b> da Railway, configure <code>CONVYA_WA_ADMIN_KEY</code> (sua senha longa), <code>META_WA_ACCESS_TOKEN</code>, <code>META_WA_PHONE_NUMBER_ID</code>, <code>META_WA_APP_SECRET</code> e <code>META_WA_VERIFY_TOKEN</code>. A senha e o verify token você escolhe; o access token, Phone Number ID e App Secret vêm da Meta. Não coloque nenhuma credencial no GitHub.</li>
+<li>Na Meta, adicione seu número pessoal como <b>destinatário de teste</b> e confirme a verificação no celular.</li>
+<li>Na configuração de <b>Webhooks</b> da Meta, use a URL exibida acima, coloque o mesmo <code>META_WA_VERIFY_TOKEN</code> e assine o evento <code>messages</code>. A Convya valida a assinatura com o App Secret.</li>
+<li>Volte aqui, verifique a integração, envie o template, responda no celular e clique em <b>Atualizar mensagens</b>.</li>
+</ol>
+<p class="caption">Para utilizar o mesmo número do WhatsApp Business como remetente e continuar no aplicativo, existe a opção de coexistência (quando disponível). O número pessoal padrão não se conecta por QR à API oficial.</p>
+</section></main>
+<script>
+(() => {
+'use strict';
+const el=id=>document.getElementById(id);
+const msg=el('realMessages'),dmsg=el('demoMessages');
+let key='',mode='real',loading=false;
+const samples=[{direction:'in',text:'Olá! Esta é uma conversa fictícia para testar a interface.',real:false,at:new Date().toISOString()}];
+const escape=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function render(target,items){target.innerHTML=items.length?items.map(m=>'<div class="bubble '+(m.direction==='out'?'out':'')+' '+(!m.real?'sim':'')+'"><div>'+escape(m.text)+'</div><span class="small">'+escape(m.direction==='out'?'Enviada':'Recebida')+' · '+escape(m.real?'Meta API':'Fictícia')+' · '+escape(m.status||'')+'</span></div>').join(''):'<div class="caption">Nenhuma mensagem recebida ainda.</div>';target.scrollTop=target.scrollHeight}
+function err(text=''){el('err').textContent=text}
+async function api(path,body){
+ const config={headers:{Authorization:'Bearer '+key}};if(body){config.method='POST';config.headers['Content-Type']='application/json';config.body=JSON.stringify(body)}
+ const response=await fetch(path,config);const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Erro HTTP '+response.status);return data
+}
+async function check(){key=el('admin').value.trim();err();if(!key){err('Digite a senha de administrador definida na Railway.');return}
+ try{const data=await api('/api/whatsapp/config');const c=data.configured;el('state').innerHTML='<b>Administrador:</b> '+(c.admin?'OK':'Ausente')+'<br><b>Envio Meta:</b> '+(c.send?'Configurado':'Pendente')+'<br><b>Webhook:</b> '+(c.webhook?'Configurado':'Pendente')+'<br><b>Histórico:</b> temporário (MVP)';el('topstatus').textContent=data.realMessaging?'Meta configurada':'Configuração pendente';el('webhook').textContent=data.webhookUrl;await refresh()}catch(e){err(e.message)}
+}
+async function refresh(){if(!key)return;if(loading)return;loading=true;try{const data=await api('/api/whatsapp/messages');render(msg,data.messages);el('last').textContent=data.messages.length+' mensagem(ns)';err()}catch(e){err(e.message)}finally{loading=false}}
+async function send(type){key=el('admin').value.trim();const to=el('phone').value.replace(/\D/g,'');if(!/^\d{10,15}$/.test(to)){err('Digite o telefone com DDI e DDD, somente números.');return}if(!key){err('Digite a senha de administrador.');return}const text=el('message').value.trim();if(type==='text'&&!text){err('Escreva a mensagem.');return}
+ if(!window.confirm(type==='template'?'Enviar o template oficial hello_world da Meta para '+to+'?':'Enviar esta mensagem REAL pelo WhatsApp para '+to+'?'))return;
+ try{err();const r=await api('/api/whatsapp/send',{to,type,text});if(r.ok){if(type==='text')el('message').value='';await refresh()} }catch(e){err(e.message)}
+}
+function demo(){const text=el('demoText').value.trim();if(!text)return;samples.push({direction:'out',text,real:false,status:'simulated'});samples.push({direction:'in',text:'Recebido (resposta fictícia): '+text,real:false,status:'simulated'});render(dmsg,samples);el('demoText').value=''}
+function setMode(v){mode=v;el('realbox').hidden=v!=='real';el('demobox').hidden=v!=='demo';el('realTab').classList.toggle('sel',v==='real');el('demoTab').classList.toggle('sel',v==='demo');if(v==='real')refresh()}
+el('webhook').textContent=location.origin+'/api/whatsapp/webhook';
+el('copyWebhook').onclick=()=>navigator.clipboard?.writeText(el('webhook').textContent);
+el('connect').onclick=check;el('refresh').onclick=refresh;el('template').onclick=()=>send('template');el('send').onclick=()=>send('text');
+el('demoSend').onclick=demo;el('realTab').onclick=()=>setMode('real');el('demoTab').onclick=()=>setMode('demo');el('demoText').onkeydown=e=>{if(e.key==='Enter')demo()};
+render(dmsg,samples);setInterval(()=>{if(mode==='real'&&key&&!document.hidden)refresh()},5000);
+})();
+</script></body></html>
