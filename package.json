@@ -1,0 +1,13 @@
+{
+  "name": "convya-ai",
+  "version": "16.0.0",
+  "private": true,
+  "description": "Convya AI V16 - CRM de prospecção e Google Places",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  }
+}
