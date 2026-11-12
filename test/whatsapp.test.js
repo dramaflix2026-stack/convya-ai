@@ -12,7 +12,7 @@ const verify='test-whatsapp-verify';
 test('start and serve real inbox',async()=>{
  server.listen(0,'127.0.0.1');await once(server,'listening');base='http://127.0.0.1:'+server.address().port;
  const r=await fetch(base+'/whatsapp.html');assert.equal(r.status,200);
- const html=await r.text();assert.match(html,/API oficial da Meta/);assert.match(html,/Conversa real/);assert.match(html,/Simulação fictícia/);
+ const html=await r.text();assert.match(html,/canal oficial da Meta/);assert.match(html,/Conversa real/);assert.match(html,/Simulação fictícia/);
 });
 test('admin is required; missing secrets disable connection',async()=>{
  const r=await fetch(base+'/api/whatsapp/config');assert.equal(r.status,503);
