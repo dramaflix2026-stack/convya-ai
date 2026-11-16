@@ -164,7 +164,7 @@ function renderJson(res,code,data){
 }
 async function handler(req,res,url,raw=Buffer.alloc(0)){
  if(!configured().admin)return renderJson(res,503,{error:'Defina CONVYA_WA_ADMIN_KEY nas variáveis privadas da Railway para liberar a conexão QR.'});
- if(!secureEqual(String(req.headers.authorization||'').replace(/^Bearer\s+/i,''),process.env.CONVYA_WA_ADMIN_KEY))
+ if(!require('./owner-access').authenticated(req))
    return renderJson(res,401,{error:'Senha de administrador inválida.'});
  const route=url.pathname;
  if(req.method==='GET'&&route==='/api/wa-web/status')return renderJson(res,200,status());
