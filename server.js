@@ -7,6 +7,7 @@ const places=require('./api/places/search');
 const placesHealth=require('./api/places/health');
 const salesAgent=require('./api/sales-agent');
 const waWeb=require('./api/whatsapp-web');
+const ownerAccess=require('./api/owner-access');
 const index=fs.readFileSync(path.join(__dirname,'index.html'));
 const whatsappHtml=fs.readFileSync(path.join(__dirname,'whatsapp.html'));
 const safeHeader={
@@ -54,6 +55,24 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){if(!res.writableEnded)return json(res,500,{error:'Falha no processamento da pesquisa'})}
   return;
  }
+ if(pathname.startsWith('/api/owner/')){
+  const getAllowed=req.method==='GET'&&pathname==='/api/owner/session';
+  const postAllowed=req.method==='POST'&&['/api/owner/claim','/api/owner/logout'].includes(pathname);
+  if(!getAllowed&&!postAllowed)return json(res,404,{error:'Rota não encontrada.'});
+  try{
+    if(req.method==='POST'){
+      if(String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase()!=='application/json')
+        return json(res,415,{error:'Content-Type JSON obrigatório.'});
+      const raw=await rawBody(req,1500);if(!raw)return json(res,413,{error:'Solicitação muito grande.'});
+      return ownerAccess.handler(req,res,url,raw);
+    }
+    return ownerAccess.handler(req,res,url,Buffer.alloc(0));
+  }catch{
+    if(!res.writableEnded)return json(res,500,{error:'Falha na verificação do navegador autorizado.'});
+  }
+  return;
+ }
+
  if(pathname.startsWith('/api/wa-web/')){
   const getRoutes=new Set(['/api/wa-web/status','/api/wa-web/messages']);
   const postRoutes=new Set(['/api/wa-web/connect','/api/wa-web/disconnect','/api/wa-web/send']);
