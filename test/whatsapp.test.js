@@ -5,7 +5,7 @@ const {once}=require('node:events');
 const {createHmac}=require('node:crypto');
 const server=require('../server');
 let base, original={};
-for(const k of ['CONVYA_WA_ADMIN_KEY','META_WA_ACCESS_TOKEN','META_WA_PHONE_NUMBER_ID','META_WA_APP_SECRET','META_WA_VERIFY_TOKEN']){original[k]=process.env[k];delete process.env[k]}
+for(const k of ['CONVYA_WA_ADMIN_KEY','META_WA_ACCESS_TOKEN','META_WA_PHONE_NUMBER_ID','META_WA_APP_SECRET','META_WA_VERIFY_TOKEN','CONVYA_TEST_PHONE']){original[k]=process.env[k];delete process.env[k]}
 const secret='admin-test-password-very-long-and-private';
 const app='test-app-secret';
 const verify='test-whatsapp-verify';
@@ -30,6 +30,7 @@ test('without Meta credentials no real messages are sent',async()=>{
 });
 test('webhook challenge verifies only matching token',async()=>{
  process.env.META_WA_APP_SECRET=app;process.env.META_WA_VERIFY_TOKEN=verify;process.env.META_WA_PHONE_NUMBER_ID='1234567890';
+ process.env.CONVYA_TEST_PHONE='5511999999999';
  const x=await fetch(base+'/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=bad&hub.challenge=123456');
  assert.equal(x.status,403);
  const y=await fetch(base+'/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token='+verify+'&hub.challenge=123456');
@@ -49,6 +50,29 @@ test('protected inbox returns received messages without exposing secrets',async(
  const data=await b.json();assert.ok(data.messages.some(m=>m.id==='wamid.TEST123'&&m.real===true&&m.text.includes('conta pessoal')));
  assert.ok(!JSON.stringify(data).includes(app));
 });
+test('webhook ignores any other phone and never stores its message',async()=>{
+ const payload={object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{metadata:{phone_number_id:'1234567890'},messages:[{id:'wamid.UNAUTHORIZED.01',from:'5521991239999',type:'text',text:{body:'Mensagem de outro telefone'}}]}}]}]};
+ const raw=JSON.stringify(payload);
+ const signature='sha256='+createHmac('sha256',app).update(raw).digest('hex');
+ const response=await fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-Signature-256':signature},body:raw});
+ assert.equal(response.status,200);
+ assert.equal((await response.json()).received,0);
+ const b=await fetch(base+'/api/whatsapp/messages',{headers:{Authorization:'Bearer '+secret}});
+ const data=await b.json();
+ assert.ok(!data.messages.some(m=>m.id==='wamid.UNAUTHORIZED.01'));
+});
+test('template send fails closed if test phone is not configured',async()=>{
+ process.env.META_WA_ACCESS_TOKEN='fake-access-token';
+ const originalTestPhone=process.env.CONVYA_TEST_PHONE;
+ delete process.env.CONVYA_TEST_PHONE;
+ const response=await fetch(base+'/api/whatsapp/send',{method:'POST',headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json'},body:JSON.stringify({to:'5511999999999',type:'template'})});
+ assert.equal(response.status,403);
+ const data=await response.json();
+ assert.match(data.error,/CONVYA_TEST_PHONE/);
+ process.env.CONVYA_TEST_PHONE=originalTestPhone;
+ delete process.env.META_WA_ACCESS_TOKEN;
+});
+
 test('clearly labeled mock message never calls the WhatsApp API',async()=>{
  const r=await fetch(base+'/api/whatsapp/mock',{method:'POST',headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json'},body:JSON.stringify({phone:'55119988887777',text:'Teste fictício'})});
  assert.equal(r.status,201);const x=await r.json();assert.equal(x.message.real,false);assert.equal(x.message.status,'simulated');
