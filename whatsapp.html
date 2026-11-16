@@ -85,7 +85,7 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
       </div>
       <div class="buttonRow"><button class="btn primary" id="connect" type="button">Gerar QR Code</button><button class="btn danger" id="disconnect" type="button" disabled>Desconectar</button></div>
       <p id="connectError" class="alert" role="status" aria-live="polite"></p>
-      <div class="statusRows"><span class="chip" id="phoneStatus">Contato de teste: não configurado</span><span class="chip" id="storageStatus">Sessão temporária</span></div>
+      <div class="statusRows"><span class="chip" id="phoneStatus">Contato de teste: não configurado</span><span class="chip" id="storageStatus">Sessão temporária</span><span class="chip" id="receiveStatus">Recebimento: aguardando</span></div>
       <p class="hint">Para evitar enviar mensagens a outras pessoas, informe <code>CONVYA_TEST_PHONE</code> na Railway. Use um número de teste <strong>diferente</strong> do aparelho vinculado.</p>
     </section>
 
@@ -138,6 +138,8 @@ function updateStatus(data){
  el('dot').classList.toggle('on',connected);
  el('phoneStatus').textContent=data.configured?.allowedPhone?'Contato autorizado: final '+data.phoneSuffix:'Contato de teste: configure na Railway';
  el('storageStatus').textContent=data.configured?.persistentStorage?'Armazenamento configurado':'Sessão temporária';
+ const inbound=data.inbound||{};
+ el('receiveStatus').textContent='Recebidas: '+(inbound.accepted||0)+(inbound.ignoredUnmatched?' · Não identificadas: '+inbound.ignoredUnmatched:'');
  el('qrInitial').hidden=Boolean(data.qr)||connected;
  el('qrReady').hidden=!data.qr||connected;
  el('qrConnected').hidden=!connected;
