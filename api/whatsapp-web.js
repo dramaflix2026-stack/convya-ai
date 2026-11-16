@@ -28,6 +28,32 @@ const SEND_TIMES=[];
 let testLidMapping=null;
 const INBOUND_DIAG={seen:0,accepted:0,ignoredSelf:0,ignoredUnmatched:0,lastAcceptedAt:null,lastRejectedReason:null};
 const AUTH_DIR=process.env.CONVYA_WA_AUTH_DIR||path.join(os.tmpdir(),'convya-wa-auth');
+let connectedAt=null;
+let resumedFromDisk=false;
+const bootAt=new Date().toISOString();
+
+async function hasRegisteredSession(dir=AUTH_DIR){
+  try{
+    const json=JSON.parse(await fs.readFile(path.join(dir,'creds.json'),'utf8'));
+    return json?.registered===true&&typeof json.me?.id==='string'&&json.me.id.length>0;
+  }catch{return false}
+}
+async function resumeSession(options={}){
+  const dir=options.dir||AUTH_DIR;
+  const connectFn=options.connectFn||connect;
+  if(status().connected)return {resumed:false,alreadyConnected:true};
+  // Only reconnect sessions with a valid previously paired WhatsApp identity.
+  // A fresh deployment without credentials must NOT generate a QR by itself.
+  if(!await hasRegisteredSession(dir))return {resumed:false,reason:'not-paired'};
+  resumedFromDisk=true;
+  try{
+    await connectFn();
+    return {resumed:true,reason:'saved-session'};
+  }catch(error){
+    resumedFromDisk=false;
+    return {resumed:false,reason:'connection-error'};
+  }
+}
 
 const digits=x=>String(x||'').replace(/\D/g,'');
 const validPhone=x=>/^\d{10,15}$/.test(digits(x));
@@ -80,6 +106,7 @@ function status(){
   const connected=testConnected||connection==='connected';
   return {state:connected?'connected':connection,connected,
     qr:connected?null:qrImage,error:connected?null:lastError,
+    connectedAt:connected?connectedAt:null,bootAt,resumedFromDisk:connected&&resumedFromDisk,
     configured:configured(),phoneSuffix:onlyPhone()?onlyPhone().slice(-4):null,
     transport:'WhatsApp Web (biblioteca comunitária)',official:false,
     onePhoneOnly:true,storage:process.env.CONVYA_WA_AUTH_DIR?'configured-folder':'temporary-folder',
@@ -188,12 +215,14 @@ async function connect(){
          // A successful link supersedes any earlier close/retry warning.
          if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null}
          connection='connected';qrImage=null;retryCount=0;lastError=null;
+         connectedAt=new Date().toISOString();
        }
        if(update.connection==='close'){
          qrImage=null;connection='disconnected';
          const code=update.lastDisconnect?.error?.output?.statusCode;
          if(code===mod.DisconnectReason?.loggedOut){
-           manualDisconnect=true;lastError='Sessão encerrada no WhatsApp. Conecte novamente.';
+           manualDisconnect=true;resumedFromDisk=false;connectedAt=null;
+           lastError='Sessão encerrada no WhatsApp. Conecte novamente.';
            void fs.rm(AUTH_DIR,{recursive:true,force:true}).catch(()=>{});
          }else if(code===mod.DisconnectReason?.restartRequired){
            // WhatsApp Web normally requests a socket restart after QR pairing.
@@ -216,6 +245,7 @@ async function disconnect(){
  manualDisconnect=true;
  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null}
  retryCount=0;qrImage=null;connection='disconnected';lastError=null;
+ resumedFromDisk=false;connectedAt=null;
  const current=socket;socket=null;engine=null;
  if(current){try{await current.logout()}catch{try{current.ws?.close()}catch{}}}
  await fs.rm(AUTH_DIR,{recursive:true,force:true}).catch(()=>{});
@@ -251,7 +281,7 @@ async function handler(req,res,url,raw=Buffer.alloc(0)){
  }
  return renderJson(res,404,{error:'Rota não encontrada.'});
 }
-module.exports={handler,status,connect,disconnect,sendMessage,receiveChatMessage,configured,
+module.exports={handler,status,connect,disconnect,sendMessage,receiveChatMessage,configured,resumeSession,hasRegisteredSession,
   _testConnect(sender){testConnected=true;testSender=sender;},
   _testLidMapping(mapping){testLidMapping=mapping},
   _testDisconnect(){testConnected=false;testSender=null;testLidMapping=null;EVENTS.length=0;
