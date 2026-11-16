@@ -72,6 +72,43 @@ test('one approved personal phone gets AI response; another phone is ignored',as
  assert.equal(agent.publicState().session.aiReplies,1);
  assert.equal(audits.length,1);
 });
+test('signed WhatsApp webhook -> mocked OpenAI response -> mocked Meta send (no live API)',async()=>{
+ const actualFetch=global.fetch;
+ const calls=[];
+ const promptBody={object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{
+   metadata:{phone_number_id:'123456'},messages:[{id:'wamid.E2E.001',from:PHONE,type:'text',text:{body:'Pode apresentar a prévia do meu site?'}}]
+ }}]}]};
+ const raw=JSON.stringify(promptBody);
+ const signed='sha256='+createHmac('sha256',process.env.META_WA_APP_SECRET).update(raw).digest('hex');
+ try{
+   global.fetch=async(url,opts)=>{
+     const target=String(url);
+     if(target.startsWith(base))return actualFetch(url,opts);
+     calls.push({target,options:opts});
+     if(target==='https://api.openai.com/v1/responses'){
+       const body=JSON.parse(opts.body);
+       assert.match(body.instructions,/Barbearia Exemplo/);
+       assert.equal(body.store,false);
+       return new Response(JSON.stringify({output:[{type:'message',content:[{type:'output_text',text:'Aqui está a prévia aprovada: https://www.pagenovaai.com.br/p/v2-barbearia-demo'}]}]}),{status:200,headers:{'content-type':'application/json'}});
+     }
+     if(target.includes('graph.facebook.com/')){
+       const body=JSON.parse(opts.body);
+       assert.equal(body.to,PHONE);
+       assert.equal(body.type,'text');
+       assert.match(body.text.body,/assistente de IA/i);
+       return new Response(JSON.stringify({messages:[{id:'wamid.E2E.OUT.001'}]}),{status:200,headers:{'content-type':'application/json'}});
+     }
+     throw Error('Unexpected external endpoint: '+target);
+   };
+   const response=await global.fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-Signature-256':signed},body:raw});
+   assert.equal(response.status,200);assert.equal((await response.json()).received,1);
+   for(let i=0;i<60&&agent.publicState().session.aiReplies<2;i++)await new Promise(r=>setTimeout(r,10));
+   assert.equal(agent.publicState().session.aiReplies,2);
+   assert.ok(calls.some(x=>x.target==='https://api.openai.com/v1/responses'));
+   assert.ok(calls.some(x=>x.target.includes('graph.facebook.com/')));
+ }finally{global.fetch=actualFetch}
+});
+
 test('business negotiation and human request end agent autonomy',async()=>{
  let sent=[];
  const deps={sendMessage:async msg=>{sent.push(msg);return {ok:true,messageId:'wamid.HUMAN.02'}},event:()=>{},generate:async()=>{throw Error('AI must not run')}};
