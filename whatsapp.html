@@ -148,7 +148,9 @@ function updateStatus(data){
  el('connect').disabled=connected;
  el('disconnect').disabled=!connected&&!connecting;
  el('send').disabled=mode==='real'&&!connected;
+ // Never leave an old reconnection warning visible after the link is online.
  if(data.error&&!connected)error('connectError',data.error);
+ else error('connectError','');
 }
 function render(list){
  const host=el('messages');
