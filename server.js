@@ -6,6 +6,7 @@ const path=require('node:path');
 const places=require('./api/places/search');
 const placesHealth=require('./api/places/health');
 const whatsapp=require('./api/whatsapp');
+const salesAgent=require('./api/sales-agent');
 const index=fs.readFileSync(path.join(__dirname,'index.html'));
 const whatsappHtml=fs.readFileSync(path.join(__dirname,'whatsapp.html'));
 const safeHeader={
@@ -62,6 +63,25 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){if(!res.writableEnded)return json(res,500,{error:'Falha no webhook'})}
   return;
  }
+ if(pathname.startsWith('/api/agent/')){
+  if(!((req.method==='GET'&&pathname==='/api/agent/status')||
+       (req.method==='POST'&&['/api/agent/activate','/api/agent/mode'].includes(pathname))))
+    return json(res,404,{error:'Rota não encontrada'});
+  try{
+    if(req.method==='POST'){
+      if(String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase()!=='application/json')
+        return json(res,415,{error:'Content-Type JSON obrigatório'});
+      const raw=await rawBody(req,5000);
+      if(!raw)return json(res,413,{error:'Solicitação muito grande'});
+      return await salesAgent.handler(req,res,url,raw);
+    }
+    return await salesAgent.handler(req,res,url,Buffer.alloc(0));
+  }catch(error){
+    if(!res.writableEnded)return json(res,500,{error:'Falha temporária no Vendedor IA'});
+  }
+  return;
+ }
+
  if(pathname.startsWith('/api/whatsapp/')){
   const allowedGet=new Set(['/api/whatsapp/config','/api/whatsapp/messages']);
   const allowedPost=new Set(['/api/whatsapp/send','/api/whatsapp/mock']);
