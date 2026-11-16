@@ -47,7 +47,7 @@ function validateApproval(token) {
 }
 function activate(token){
   const config=ready();
-  if(!config.admin||!config.phone||!config.bridge)throw Error('Configure a senha, o número de teste e o segredo da integração na Railway.');
+  if(!config.admin||!config.phone||!config.bridge||!config.meta||!config.ai)throw Error('Configure o número de teste, acesso Meta, OpenAI e o segredo de integração na Railway.');
   const approval=validateApproval(token);
   session={...approval,phone:allowedPhone(),status:'active',startedAt:new Date().toISOString(),
     lastInboundAt:0,aiReplies:0,messageCount:0,lastError:null,history:[],pending:[],processing:false};
