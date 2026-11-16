@@ -24,6 +24,7 @@ let manualDisconnect=false;
 let engine=null;
 let testConnected=false;
 let testSender=null;
+const SEND_TIMES=[];
 const AUTH_DIR=process.env.CONVYA_WA_AUTH_DIR||path.join(os.tmpdir(),'convya-wa-auth');
 
 const digits=x=>String(x||'').replace(/\D/g,'');
@@ -65,7 +66,8 @@ async function sendMessage({to,type,text}){
 }
 async function receiveChatMessage(message){
   if(message.key?.fromMe||!message.message)return;
-  const jid=String(message.key?.remoteJid||'');
+  const primary=String(message.key?.remoteJid||'');
+  const jid=primary.endsWith('@s.whatsapp.net')?primary:String(message.key?.remoteJidAlt||primary);
   if(!jid.endsWith('@s.whatsapp.net'))return;
   const sender=digits(jid.split('@')[0]);
   const authorized=onlyPhone();
@@ -97,7 +99,8 @@ async function connect(){
    connection='connecting';qrImage=null;lastError=null;
    try{
      const mod=await import('@whiskeysockets/baileys');
-     const qr=await import('qrcode');
+     const qrModule=await import('qrcode');
+     const qr=qrModule.default||qrModule;
      const makeWASocket=mod.default;
      const {state,saveCreds}=await mod.useMultiFileAuthState(AUTH_DIR);
      await fs.chmod(AUTH_DIR,0o700).catch(()=>{});
@@ -111,16 +114,17 @@ async function connect(){
        connectTimeoutMs:30000,
        logger:{level:'silent',child(){return this},trace(){},debug(){},info(){},warn(){},error(){}}
      });
-     engine=socket;
+     const current=socket;
+     engine=current;
      socket.ev.on('creds.update',()=>void saveCreds().catch(()=>{lastError='Não foi possível salvar a sessão do WhatsApp.'}));
      socket.ev.on('messages.upsert',payload=>{
        if(payload.type!=='notify')return;
        for(const message of payload.messages||[])void receiveChatMessage(message);
      });
      socket.ev.on('connection.update',update=>{
-       if(socket!==engine)return;
+       if(current!==engine)return;
        if(update.qr)void qr.toDataURL(update.qr,{errorCorrectionLevel:'M',width:270,margin:2})
-         .then(data=>{if(socket===engine){qrImage=data;connection='qr-ready'}})
+         .then(data=>{if(current===engine){qrImage=data;connection='qr-ready'}})
          .catch(()=>{lastError='Falha ao gerar QR.'});
        if(update.connection==='open'){
          connection='connected';qrImage=null;retryCount=0;lastError=null;
@@ -175,6 +179,9 @@ async function handler(req,res,url,raw=Buffer.alloc(0)){
  if(route==='/api/wa-web/disconnect')return renderJson(res,200,await disconnect());
  if(route==='/api/wa-web/send'){
    if(!status().connected)return renderJson(res,409,{error:'Conecte seu WhatsApp pelo QR primeiro.'});
+   const now=Date.now();while(SEND_TIMES.length&&now-SEND_TIMES[0]>60000)SEND_TIMES.shift();
+   if(SEND_TIMES.length>=10)return renderJson(res,429,{error:'Limite de 10 mensagens por minuto para homologação.'});
+   SEND_TIMES.push(now);
    const result=await sendMessage({to:onlyPhone(),type:'text',text:payload.text});
    if(!result.ok)return renderJson(res,422,{error:result.error});
    const row=pushEvent({id:result.messageId,direction:'out',real:true,text:String(payload.text||'').trim(),status:'sent'});
