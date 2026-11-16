@@ -1,14 +1,14 @@
 {
   "name": "convya-ai",
-  "version": "17.0.0",
+  "version": "18.0.0",
   "private": true,
-  "description": "Convya AI V17 - test WhatsApp Cloud API on Railway",
+  "description": "Convya AI V18 - one-to-one Vendedor IA pilot for PageNova",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "build": "npm test && node --check server.js && node --check api/whatsapp.js"
+    "build": "npm test && node --check server.js && node --check api/whatsapp.js && node --check api/sales-agent.js"
   }
 }
