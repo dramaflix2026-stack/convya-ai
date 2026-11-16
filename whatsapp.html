@@ -77,8 +77,7 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
   <div class="grid">
     <section class="panel" id="conectar" aria-label="Conectar seu WhatsApp">
       <div class="sectionHead"><span class="iconBox">◉</span><div><h2>1. Conecte seu WhatsApp</h2><p class="muted">Acesse seu WhatsApp no celular → Dispositivos conectados → Conectar dispositivo.</p></div></div>
-      <div id="ownerStatus" class="notice" role="status" aria-live="polite">Verificando acesso deste navegador...</div>
-      <p class="hint">Acesso privado neste navegador, sem senha no painel. Na primeira utilização, autorize o dispositivo com seu link de ativação. A sessão dura 30 dias.</p>
+      <p class="hint">Acesso direto, sem senha, login ou ativação do navegador. Atenção: esta URL é pública; qualquer visitante pode acessar a área de conexão.</p>
       <div class="qrArea" id="qrArea" aria-live="polite">
         <div id="qrInitial"><span class="qrEmoji">▦</span><strong>Seu QR Code aparecerá aqui</strong><p class="muted">Clique em “Gerar QR Code” para vincular seu aparelho com segurança.</p></div>
         <div id="qrReady" hidden><img id="qrImg" alt="QR Code para conectar o seu WhatsApp ao painel Convya"><p class="hint">Escaneie pelo WhatsApp no celular. Não compartilhe este código.</p></div>
@@ -111,7 +110,7 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
 
   <section class="panel help" aria-label="Como começar">
     <div><h2>Pronto para testar?</h2><p class="muted">São apenas três passos. Não há necessidade de configurar a API do WhatsApp da Meta.</p></div>
-    <div class="steps"><div class="step"><span class="num">1</span><span>Autorize este navegador uma vez e configure o número de teste na Railway.</span></div><div class="step"><span class="num">2</span><span>Vincule o celular pelo QR Code.</span></div><div class="step"><span class="num">3</span><span>Converse e, depois, ative a IA com um site aprovado.</span></div></div>
+    <div class="steps"><div class="step"><span class="num">1</span><span>Configure o número de teste na Railway e abra este painel.</span></div><div class="step"><span class="num">2</span><span>Vincule o celular pelo QR Code.</span></div><div class="step"><span class="num">3</span><span>Converse e, depois, ative a IA com um site aprovado.</span></div></div>
   </section>
   <p class="footer">Convya V19 · Teste privado do WhatsApp Web · Sessão e conversas temporárias se não houver armazenamento persistente. <a href="https://railway.com/project/5b1cd631-b4e0-4eb0-af20-6150c55fe022" target="_blank" rel="noopener noreferrer">Variáveis da Railway</a></p>
 </main></div>
@@ -120,13 +119,12 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
 'use strict';
 const el=id=>document.getElementById(id);
 const handoff=new URLSearchParams(location.search).get('handoff')||'';
-const accessCode=new URLSearchParams(location.hash.slice(1)).get('access')||'';
-if(handoff||accessCode)history.replaceState(null,'',location.pathname);
-let authorized=false,mode='real',connected=false,statusReady=false,lastMsgs=[],polling=false;
+if(handoff)history.replaceState(null,'',location.pathname);
+let mode='real',connected=false,statusReady=false,lastMsgs=[],polling=false;
 const demos=[{direction:'in',text:'Olá! Esta mensagem é fictícia. Experimente a conversa sem conectar seu WhatsApp.',real:false,at:new Date().toISOString()}];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const error=(id,msg='')=>el(id).textContent=msg;
-function auth(){if(!authorized){error('connectError','Este navegador precisa ser autorizado uma única vez com seu link privado de acesso.');return false}return true}
+function auth(){return true}
 async function api(path,body){
  const args={headers:{},credentials:'same-origin'};
  if(body!==undefined){args.method='POST';args.headers['Content-Type']='application/json';args.body=JSON.stringify(body)}
@@ -158,7 +156,7 @@ function render(list){
  host.innerHTML=list.slice(-100).map(m=>'<div class="bubble '+(m.direction==='out'?'out':'')+' '+(!m.real?'demo':'')+'"><div>'+esc(m.text)+'</div><div class="tiny">'+(m.direction==='out'?'Você / Convya':'Contato de teste')+(m.real?'':' · Fictícia')+' · '+esc(m.status||'')+'</div></div>').join('');
  host.scrollTop=host.scrollHeight;
 }
-async function status(){if(!authorized)return;if(polling)return;polling=true;try{
+async function status(){if(polling)return;polling=true;try{
  const data=await api('/api/wa-web/status');updateStatus(data);
  if(mode==='real')await refresh(false);
  await agentStatus();
@@ -172,7 +170,7 @@ async function disconnect(){if(!auth())return;
  try{updateStatus(await api('/api/wa-web/disconnect',{}));await refresh(false)}
  catch(e){error('connectError',e.message)}
 }
-async function refresh(showError=true){if(mode!=='real'||!authorized)return;
+async function refresh(showError=true){if(mode!=='real')return;
  try{const data=await api('/api/wa-web/messages');lastMsgs=data.messages||[];render(lastMsgs);el('messageCounter').textContent=lastMsgs.length+' mensagem(ns) da conversa real';if(showError)error('sendError')}
  catch(e){if(showError)error('sendError',e.message)}}
 function setMode(value){mode=value;const real=value==='real';
@@ -200,7 +198,7 @@ function showAgent(result){
  el('agentHuman').disabled=!s||s.status==='human';
  el('agentResume').disabled=!s||s.status==='active';
 }
-async function agentStatus(){if(!authorized)return;try{showAgent(await api('/api/agent/status'))}catch(e){}}
+async function agentStatus(){try{showAgent(await api('/api/agent/status'))}catch(e){}}
 async function agentActivate(){
  if(!auth())return;error('agentError');
  if(!handoff){error('agentError','Primeiro publique e aprove um site no Builder da PageNova. O botão de aprovação abre esta página com o contexto do site.');return}
@@ -219,30 +217,6 @@ el('agentPause').onclick=()=>agentMode('paused');el('agentHuman').onclick=()=>ag
 
 el('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
 if(handoff)el('agentSite').textContent='Site enviado pela PageNova. Conecte o WhatsApp e ative o agente para validar a aprovação.';
-async function bootstrap(){
-  error('connectError');
-  el('connect').disabled=true;
-  try{
-    if(accessCode)await api('/api/owner/claim',{accessKey:accessCode});
-    const result=await api('/api/owner/session');
-    authorized=Boolean(result.authorized);
-    if(authorized){
-      el('ownerStatus').className='notice';
-      el('ownerStatus').textContent='✓ Navegador autorizado. Você pode conectar seu WhatsApp sem digitar senha.';
-      el('connect').disabled=false;
-      await status();
-    }else{
-      el('ownerStatus').className='notice warn';
-      el('ownerStatus').textContent='Acesso privado pendente. Abra uma vez o link de ativação deste dispositivo; depois a conexão funciona automaticamente.';
-      el('qrInitial').innerHTML='<span class="qrEmoji">🔒</span><strong>Ative seu navegador primeiro</strong><p class="muted">O link de acesso privado usa um código que fica somente na Railway.</p>';
-    }
-  }catch(e){
-    authorized=false;
-    el('ownerStatus').className='notice error';
-    el('ownerStatus').textContent='Não foi possível autorizar este navegador.';
-    error('connectError',e.message);
-  }
-}
-setMode('real');void bootstrap();setInterval(()=>{if(!document.hidden&&authorized)status()},3500);
+setMode('real');void status();setInterval(()=>{if(!document.hidden)status()},3500);
 })();
 </script></body></html>

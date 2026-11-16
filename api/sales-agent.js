@@ -12,7 +12,6 @@ const secretMatch=(x,y)=>{const a=Buffer.from(String(x||'')),b=Buffer.from(Strin
 const safe=(s,n=200)=>typeof s==='string'?s.trim().slice(0,n):'';
 const allowedPhone=()=>phone(process.env.CONVYA_TEST_PHONE);
 const ready=()=>({
-  admin:!!(process.env.CONVYA_WA_ADMIN_KEY&&process.env.CONVYA_WA_ADMIN_KEY.length>=16),
   bridge:!!(process.env.PAGENOVA_CONVYA_HANDOFF_SECRET&&process.env.PAGENOVA_CONVYA_HANDOFF_SECRET.length>=32),
   phone:/^\d{10,15}$/.test(allowedPhone()),
   whatsappWeb:require('./whatsapp-web').status().connected,
@@ -47,7 +46,7 @@ function validateApproval(token) {
 }
 function activate(token){
   const config=ready();
-  if(!config.admin||!config.phone||!config.bridge||!config.whatsappWeb||!config.ai)throw Error('Configure o número de teste, conecte pelo QR, adicione a chave da OpenAI e o segredo de integração na Railway.');
+  if(!config.phone||!config.bridge||!config.whatsappWeb||!config.ai)throw Error('Configure o número de teste, conecte pelo QR, adicione a chave da OpenAI e o segredo de integração na Railway.');
   const approval=validateApproval(token);
   session={...approval,phone:allowedPhone(),status:'active',startedAt:new Date().toISOString(),
     lastInboundAt:0,aiReplies:0,messageCount:0,lastError:null,history:[],pending:[],processing:false};
@@ -138,9 +137,6 @@ async function onInbound(message, deps){
 }
 async function handler(req,res,url,raw){
  const send=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value))}
- if(!ready().admin)return send(503,{error:'Configure CONVYA_WA_ADMIN_KEY na Railway.'});
- const bearer=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
- if(!require('./owner-access').authenticated(req))return send(401,{error:'Senha de administrador inválida.'});
  if(req.method==='GET'&&url.pathname==='/api/agent/status')return send(200,publicState());
  if(req.method!=='POST')return send(405,{error:'Método não permitido.'});
  let body;try{body=JSON.parse(raw.toString('utf8'))}catch{return send(400,{error:'JSON inválido.'})}

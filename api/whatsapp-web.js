@@ -4,7 +4,7 @@
  * Strictly single linked account + one authorized test recipient.
  * Auth keys are written to an instance-local private folder; for survival
  * across Railway deploys, mount a private persistent volume at that folder.
- * This module never starts the socket until an authenticated user clicks Connect.
+ * This module starts the socket only after the operator clicks Connect.
  */
 const fs=require('node:fs/promises');
 const os=require('node:os');
@@ -32,7 +32,6 @@ const validPhone=x=>/^\d{10,15}$/.test(digits(x));
 const secureEqual=(x,y)=>{const a=Buffer.from(String(x||'')),b=Buffer.from(String(y||''));return a.length>0&&a.length===b.length&&timingSafeEqual(a,b)};
 const onlyPhone=()=>validPhone(process.env.CONVYA_TEST_PHONE)?digits(process.env.CONVYA_TEST_PHONE):'';
 function configured(){return {
-  admin:!!(process.env.CONVYA_WA_ADMIN_KEY&&process.env.CONVYA_WA_ADMIN_KEY.length>=16),
   allowedPhone:!!onlyPhone(),
   ai:!!process.env.OPENAI_API_KEY,
   pageNova:!!process.env.PAGENOVA_CONVYA_HANDOFF_SECRET,
@@ -91,7 +90,6 @@ function scheduleReconnect(){
  reconnectTimer.unref?.();
 }
 async function connect(){
- if(!configured().admin)throw Error('Configure CONVYA_WA_ADMIN_KEY na Railway antes de conectar.');
  if(connection==='connected')return status();
  if(connecting)return connecting;
  manualDisconnect=false;
@@ -163,9 +161,6 @@ function renderJson(res,code,data){
  res.end(JSON.stringify(data));
 }
 async function handler(req,res,url,raw=Buffer.alloc(0)){
- if(!configured().admin)return renderJson(res,503,{error:'Defina CONVYA_WA_ADMIN_KEY nas variáveis privadas da Railway para liberar a conexão QR.'});
- if(!require('./owner-access').authenticated(req))
-   return renderJson(res,401,{error:'Senha de administrador inválida.'});
  const route=url.pathname;
  if(req.method==='GET'&&route==='/api/wa-web/status')return renderJson(res,200,status());
  if(req.method==='GET'&&route==='/api/wa-web/messages')return renderJson(res,200,{messages:EVENTS.slice(-100),storage:'memory'});

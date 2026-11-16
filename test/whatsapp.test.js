@@ -4,14 +4,13 @@ const assert=require('node:assert/strict');
 const {once}=require('node:events');
 const server=require('../server');
 const wa=require('../api/whatsapp-web');
-const ADMIN='test-only-strong-admin-secret-987654321';
 const PHONE='5511999887766';
 let url;
-const OLD=Object.fromEntries(['CONVYA_WA_ADMIN_KEY','CONVYA_TEST_PHONE'].map(k=>[k,process.env[k]]));
+const OLD=Object.fromEntries(['CONVYA_TEST_PHONE'].map(k=>[k,process.env[k]]));
 // Each test starts without the Railway production allowlist; explicitly enable it
 // only in the relevant scenario. Restore the original value in after().
 delete process.env.CONVYA_TEST_PHONE;
-const auth={Authorization:'Bearer '+ADMIN,'Content-Type':'application/json'};
+const auth={'Content-Type':'application/json'};
 test('start server and render premium white/green QR page',async()=>{
  server.listen(0,'127.0.0.1');await once(server,'listening');
  url='http://127.0.0.1:'+server.address().port;
@@ -22,16 +21,12 @@ test('start server and render premium white/green QR page',async()=>{
  assert.match(h,/api\/wa-web\/connect/);
  assert.doesNotMatch(h,/META_WA_ACCESS_TOKEN|hello_world|Meta Developers/);
 });
-test('reject access without server-side administrator password',async()=>{
- delete process.env.CONVYA_WA_ADMIN_KEY;
- const r=await fetch(url+'/api/wa-web/status');assert.equal(r.status,503);
- process.env.CONVYA_WA_ADMIN_KEY=ADMIN;
- const x=await fetch(url+'/api/wa-web/status');assert.equal(x.status,401);
- const bad=await fetch(url+'/api/wa-web/status',{headers:{Authorization:'Bearer incorrect'}});assert.equal(bad.status,401);
- const ok=await fetch(url+'/api/wa-web/status',{headers:auth});assert.equal(ok.status,200);
- const data=await ok.json();assert.equal(data.connected,false);
- assert.equal(data.configured.admin,true);assert.equal(data.configured.allowedPhone,false);
- assert.doesNotMatch(JSON.stringify(data),/987654321/);
+test('QR status is accessible without passwords, with the one-phone guard still active',async()=>{
+ const status=await fetch(url+'/api/wa-web/status');
+ assert.equal(status.status,200);
+ const data=await status.json();
+ assert.equal(data.connected,false);
+ assert.equal(data.configured.allowedPhone,false);
 });
 test('unconfigured test number blocks messages even when a socket is simulated',async()=>{
  const sent=[];
@@ -66,7 +61,7 @@ test('inbound to disconnected or other number does not turn on agent',async()=>{
 });
 test('GET cannot mutate and invalid send payload fails closed',async()=>{
  const r=await fetch(url+'/api/wa-web/connect',{headers:auth});assert.equal(r.status,404);
- const bad=await fetch(url+'/api/wa-web/send',{method:'POST',headers:{Authorization:'Bearer '+ADMIN},body:JSON.stringify({text:'teste'})});assert.equal(bad.status,415);
+ const bad=await fetch(url+'/api/wa-web/send',{method:'POST',headers:{},body:JSON.stringify({text:'teste'})});assert.equal(bad.status,415);
  const invalid=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:'{' });assert.equal(invalid.status,400);
 });
 after(async()=>{

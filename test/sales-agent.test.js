@@ -6,10 +6,9 @@ const {once}=require('node:events');
 const agent=require('../api/sales-agent');
 const wa=require('../api/whatsapp-web');
 const server=require('../server');
-const keys=['CONVYA_TEST_PHONE','CONVYA_WA_ADMIN_KEY','PAGENOVA_CONVYA_HANDOFF_SECRET','OPENAI_API_KEY'];
+const keys=['CONVYA_TEST_PHONE','PAGENOVA_CONVYA_HANDOFF_SECRET','OPENAI_API_KEY'];
 const previous=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
 const SECRET='private-bridge-secret-for-QA-0123456789';
-const ADMIN='admin-for-test-only-very-long-0123456';
 const PHONE='5511987654321';
 let origin,realFetch,realSent=[];
 const now=()=>Math.floor(Date.now()/1000);
@@ -19,20 +18,21 @@ function sign(expires=now()+500,url='https://www.pagenovaai.com.br/p/v2-barbeari
  return body+'.'+createHmac('sha256',SECRET).update(body).digest('base64url');
 }
 function setUp(){
- process.env.CONVYA_WA_ADMIN_KEY=ADMIN;process.env.CONVYA_TEST_PHONE=PHONE;
+ process.env.CONVYA_TEST_PHONE=PHONE;
  process.env.PAGENOVA_CONVYA_HANDOFF_SECRET=SECRET;
  process.env.OPENAI_API_KEY='test-only-key-openai-not-valid';
  wa._testConnect(async args=>{realSent.push(args);return {key:{id:'wa.test.'+realSent.length}}});
 }
-const headers={Authorization:'Bearer '+ADMIN,'Content-Type':'application/json'};
+const headers={'Content-Type':'application/json'};
 test('start isolated Node server',async()=>{
  server.listen(0,'127.0.0.1');await once(server,'listening');origin='http://127.0.0.1:'+server.address().port;realFetch=global.fetch;
 });
-test('unauthorized agent endpoints refuse access',async()=>{
+test('status is accessible without passwords; missing environment blocks activation',async()=>{
  for(const k of keys)delete process.env[k];
- const no=await fetch(origin+'/api/agent/status');assert.equal(no.status,503);
- process.env.CONVYA_WA_ADMIN_KEY=ADMIN;
- const bad=await fetch(origin+'/api/agent/status');assert.equal(bad.status,401);
+ const response=await fetch(origin+'/api/agent/status');
+ assert.equal(response.status,200);
+ const status=await response.json();
+ assert.equal(status.configured.phone,false);
 });
 test('signed approved site is mandatory, time limited and restricted to PageNova',()=>{
  setUp();
@@ -48,7 +48,7 @@ test('agent cannot activate unless an authorized QR session is linked',()=>{
  assert.equal(agent.activate(sign()).session.status,'active');
  assert.equal(agent.publicState().session.phoneSuffix,PHONE.slice(-4));
 });
-test('admin can pause, take over and resume from HTTP',async()=>{
+test('operator can pause, take over and resume from HTTP',async()=>{
  const s=await fetch(origin+'/api/agent/status',{headers});
  assert.equal(s.status,200);assert.equal((await s.json()).session.status,'active');
  const human=await fetch(origin+'/api/agent/mode',{method:'POST',headers,body:JSON.stringify({mode:'human'})});
