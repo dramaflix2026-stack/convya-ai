@@ -29,6 +29,19 @@ code{font-size:12px;color:#c3f3a0;overflow-wrap:anywhere}
 <body><main>
 <header><div><a href="/">← Voltar ao CRM</a><h1>WhatsApp <span style="color:var(--green)">real</span></h1><div class="caption">Envio e recebimento pelo canal oficial da Meta • Homologação V17</div></div><span class="tag" id="topstatus">Não conectado</span></header>
 <div class="notice warning"><b>Dois modos diferentes:</b> simulação usa dados fictícios e <b>não</b> chega ao celular. Conversa real usa o número de teste do WhatsApp Cloud API da Meta e seu próprio telefone como destinatário, depois de configurada a API. Não é conexão por QR do WhatsApp pessoal.</div>
+<section class="panel" style="margin-bottom:16px;border-color:#55775c">
+  <div class="sectionTitle"><h2>Vendedor IA — 1 conversa de teste</h2><span class="tag" id="agentBadge">Desativado</span></div>
+  <p class="caption">A PageNova aprova um site publicado e abre esta página com uma autorização assinada. A IA só responde ao telefone de teste liberado na Railway. Não envia mensagens por iniciativa própria.</p>
+  <div id="agentSite" class="notice">Nenhum site aprovado recebido. Primeiro publique e aprove um site na PageNova.</div>
+  <div class="actions">
+    <button id="agentStart">Ativar IA neste site</button>
+    <button class="alt" id="agentPause">Pausar IA</button>
+    <button class="alt" id="agentHuman">Assumir conversa</button>
+    <button class="alt" id="agentResume">Retomar IA</button>
+  </div>
+  <p id="agentError" role="status" aria-live="polite" class="error"></p>
+  <p class="caption">Para testar: ative a IA, envie o template hello_world ao seu número pessoal, responda no celular e veja a resposta gerada. Para valores, contratos e pagamentos, o agente encaminha a um humano.</p>
+</section>
 <div class="grid">
 <section class="panel">
 <h2>1. Configuração da conversa real</h2>
@@ -70,6 +83,47 @@ code{font-size:12px;color:#c3f3a0;overflow-wrap:anywhere}
 'use strict';
 const el=id=>document.getElementById(id);
 const msg=el('realMessages'),dmsg=el('demoMessages');
+
+const handoff=new URLSearchParams(location.search).get('handoff')||'';
+if(handoff){
+  history.replaceState(null,'',location.pathname);
+  el('agentSite').textContent='Autorização de site recebida da PageNova. Informe a senha e clique em Ativar IA para validar.';
+}
+function agentError(message=''){el('agentError').textContent=message}
+function showAgent(data){
+  const current=data.session;
+  el('agentBadge').textContent=current
+    ?({active:'IA ativa',paused:'IA pausada',human:'Humano assumiu'}[current.status]||current.status)
+    :'Inativo';
+  if(current){
+    el('agentSite').textContent=current.businessName+' · '+current.siteUrl+' · '+current.aiReplies+' resposta(s) da IA · teste final '+current.phoneSuffix;
+  }else if(!handoff){el('agentSite').textContent='Nenhum site aprovado nesta sessão. Aprove o site publicado na PageNova para iniciar.'}
+  el('agentPause').disabled=!current||current.status!=='active';
+  el('agentHuman').disabled=!current||current.status==='human';
+  el('agentResume').disabled=!current||current.status==='active';
+}
+async function agentStatus(){
+  if(!key)return;
+  try{showAgent(await api('/api/agent/status'))}catch(e){agentError(e.message)}
+}
+async function agentActivate(){
+  key=el('admin').value.trim();
+  agentError();
+  if(!handoff){agentError('Aprovação ausente. Abra pelo botão Aprovar site e testar Vendedor IA da PageNova.');return}
+  if(!key){agentError('Digite a senha de administrador.');return}
+  if(!confirm('Ativar a IA APENAS para seu número pessoal de teste? A IA não abordará outros leads.'))return;
+  try{showAgent(await api('/api/agent/activate',{handoff}));await refresh()}catch(e){agentError(e.message)}
+}
+async function agentMode(mode){
+  key=el('admin').value.trim();
+  if(!key){agentError('Digite a senha de administrador.');return}
+  try{showAgent(await api('/api/agent/mode',{mode}));agentError()}catch(e){agentError(e.message)}
+}
+el('agentStart').onclick=agentActivate;
+el('agentPause').onclick=()=>agentMode('paused');
+el('agentHuman').onclick=()=>agentMode('human');
+el('agentResume').onclick=()=>agentMode('active');
+
 let key='',mode='real',loading=false;
 const samples=[{direction:'in',text:'Olá! Esta é uma conversa fictícia para testar a interface.',real:false,at:new Date().toISOString()}];
 const escape=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -80,7 +134,7 @@ async function api(path,body){
  const response=await fetch(path,config);const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Erro HTTP '+response.status);return data
 }
 async function check(){key=el('admin').value.trim();err();if(!key){err('Digite a senha de administrador definida na Railway.');return}
- try{const data=await api('/api/whatsapp/config');const c=data.configured;el('state').innerHTML='<b>Administrador:</b> '+(c.admin?'OK':'Ausente')+'<br><b>Envio Meta:</b> '+(c.send?'Configurado':'Pendente')+'<br><b>Webhook:</b> '+(c.webhook?'Configurado':'Pendente')+'<br><b>Histórico:</b> temporário (MVP)';el('topstatus').textContent=data.realMessaging?'Meta configurada':'Configuração pendente';el('webhook').textContent=data.webhookUrl;await refresh()}catch(e){err(e.message)}
+ try{const data=await api('/api/whatsapp/config');const c=data.configured;el('state').innerHTML='<b>Administrador:</b> '+(c.admin?'OK':'Ausente')+'<br><b>Envio Meta:</b> '+(c.send?'Configurado':'Pendente')+'<br><b>Webhook:</b> '+(c.webhook?'Configurado':'Pendente')+'<br><b>Histórico:</b> temporário (MVP)';el('topstatus').textContent=data.realMessaging?'Meta configurada':'Configuração pendente';el('webhook').textContent=data.webhookUrl;await refresh();await agentStatus()}catch(e){err(e.message)}
 }
 async function refresh(){if(!key)return;if(loading)return;loading=true;try{const data=await api('/api/whatsapp/messages');render(msg,data.messages);el('last').textContent=data.messages.length+' mensagem(ns)';err()}catch(e){err(e.message)}finally{loading=false}}
 async function send(type){key=el('admin').value.trim();const to=el('phone').value.replace(/\D/g,'');if(!/^\d{10,15}$/.test(to)){err('Digite o telefone com DDI e DDD, somente números.');return}if(!key){err('Digite a senha de administrador.');return}const text=el('message').value.trim();if(type==='text'&&!text){err('Escreva a mensagem.');return}
@@ -93,6 +147,6 @@ el('webhook').textContent=location.origin+'/api/whatsapp/webhook';
 el('copyWebhook').onclick=()=>navigator.clipboard?.writeText(el('webhook').textContent);
 el('connect').onclick=check;el('refresh').onclick=refresh;el('template').onclick=()=>send('template');el('send').onclick=()=>send('text');
 el('demoSend').onclick=demo;el('realTab').onclick=()=>setMode('real');el('demoTab').onclick=()=>setMode('demo');el('demoText').onkeydown=e=>{if(e.key==='Enter')demo()};
-render(dmsg,samples);setInterval(()=>{if(mode==='real'&&key&&!document.hidden)refresh()},5000);
+render(dmsg,samples);setInterval(()=>{if(mode==='real'&&key&&!document.hidden){refresh();agentStatus()}},5000);
 })();
 </script></body></html>
