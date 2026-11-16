@@ -38,8 +38,9 @@ function configured(){return {
   persistentStorage:!!process.env.CONVYA_WA_AUTH_DIR
 };}
 function status(){
-  return {state:testConnected?'connected':connection,connected:testConnected||connection==='connected',
-    qr:testConnected?null:qrImage,error:lastError,
+  const connected=testConnected||connection==='connected';
+  return {state:connected?'connected':connection,connected,
+    qr:connected?null:qrImage,error:connected?null:lastError,
     configured:configured(),phoneSuffix:onlyPhone()?onlyPhone().slice(-4):null,
     transport:'WhatsApp Web (biblioteca comunitária)',official:false,
     onePhoneOnly:true,storage:process.env.CONVYA_WA_AUTH_DIR?'configured-folder':'temporary-folder',
@@ -121,10 +122,12 @@ async function connect(){
      });
      socket.ev.on('connection.update',update=>{
        if(current!==engine)return;
-       if(update.qr)void qr.toDataURL(update.qr,{errorCorrectionLevel:'M',width:270,margin:2})
-         .then(data=>{if(current===engine){qrImage=data;connection='qr-ready'}})
+       if(update.qr&&connection!=='connected')void qr.toDataURL(update.qr,{errorCorrectionLevel:'M',width:270,margin:2})
+         .then(data=>{if(current===engine&&connection!=='connected'){qrImage=data;connection='qr-ready'}})
          .catch(()=>{lastError='Falha ao gerar QR.'});
        if(update.connection==='open'){
+         // A successful link supersedes any earlier close/retry warning.
+         if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null}
          connection='connected';qrImage=null;retryCount=0;lastError=null;
        }
        if(update.connection==='close'){
@@ -133,7 +136,12 @@ async function connect(){
          if(code===mod.DisconnectReason?.loggedOut){
            manualDisconnect=true;lastError='Sessão encerrada no WhatsApp. Conecte novamente.';
            void fs.rm(AUTH_DIR,{recursive:true,force:true}).catch(()=>{});
-         }else{lastError='Conexão interrompida; tentando reconectar.';scheduleReconnect();}
+         }else if(code===mod.DisconnectReason?.restartRequired){
+           // WhatsApp Web normally requests a socket restart after QR pairing.
+           connection='connecting';lastError=null;scheduleReconnect();
+         }else{
+           lastError='Conexão interrompida; tentando reconectar.';scheduleReconnect();
+         }
        }
      });
      return status();
