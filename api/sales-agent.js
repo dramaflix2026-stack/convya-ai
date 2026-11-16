@@ -15,7 +15,7 @@ const ready=()=>({
   admin:!!(process.env.CONVYA_WA_ADMIN_KEY&&process.env.CONVYA_WA_ADMIN_KEY.length>=16),
   bridge:!!(process.env.PAGENOVA_CONVYA_HANDOFF_SECRET&&process.env.PAGENOVA_CONVYA_HANDOFF_SECRET.length>=32),
   phone:/^\d{10,15}$/.test(allowedPhone()),
-  meta:!!(process.env.META_WA_ACCESS_TOKEN&&process.env.META_WA_PHONE_NUMBER_ID&&process.env.META_WA_APP_SECRET&&process.env.META_WA_VERIFY_TOKEN),
+  whatsappWeb:require('./whatsapp-web').status().connected,
   ai:!!(process.env.OPENAI_API_KEY&&process.env.OPENAI_API_KEY.length>=15)
 });
 function publicState(){
@@ -47,7 +47,7 @@ function validateApproval(token) {
 }
 function activate(token){
   const config=ready();
-  if(!config.admin||!config.phone||!config.bridge||!config.meta||!config.ai)throw Error('Configure o número de teste, acesso Meta, OpenAI e o segredo de integração na Railway.');
+  if(!config.admin||!config.phone||!config.bridge||!config.whatsappWeb||!config.ai)throw Error('Configure o número de teste, conecte pelo QR, adicione a chave da OpenAI e o segredo de integração na Railway.');
   const approval=validateApproval(token);
   session={...approval,phone:allowedPhone(),status:'active',startedAt:new Date().toISOString(),
     lastInboundAt:0,aiReplies:0,messageCount:0,lastError:null,history:[],pending:[],processing:false};
@@ -153,4 +153,4 @@ async function handler(req,res,url,raw){
   return send(404,{error:'Rota não encontrada.'});
  }catch(e){return send(422,{error:e instanceof Error?e.message:'Falha ao ativar agente.'})}
 }
-module.exports={handler,onInbound,publicState,validateApproval,activate,setMode,baseInstructions,_reset:()=>{session=null}};
+module.exports={handler,onInbound,publicState,validateApproval,activate,setMode,baseInstructions,setModeIfExists:(mode)=>{if(session&&['paused','human'].includes(mode))session.status=mode},_reset:()=>{session=null}};
