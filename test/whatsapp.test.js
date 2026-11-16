@@ -131,6 +131,46 @@ test('messages from other phone, group and own account stay excluded',async()=>{
  assert.ok(data.inbound.lastAcceptedAt);
 });
 
+test('refreshing the browser never disconnects an active WhatsApp socket',async()=>{
+ wa._testConnect(async()=>({key:{id:'mock.connected'}}));
+ for(let n=0;n<3;n++){
+   const page=await fetch(url+'/whatsapp.html');assert.equal(page.status,200);
+   const status=await fetch(url+'/api/wa-web/status');
+   assert.equal(status.status,200);
+   assert.equal((await status.json()).connected,true);
+ }
+ wa._testDisconnect();
+});
+test('only a previously paired, registered WhatsApp session may auto-resume',async()=>{
+ const fs=require('node:fs/promises');
+ const os=require('node:os');
+ const path=require('node:path');
+ const temp=await fs.mkdtemp(path.join(os.tmpdir(),'convya-session-test-'));
+ let resumed=0;
+ try{
+   let state=await wa.resumeSession({dir:temp,connectFn:async()=>{resumed++}});
+   assert.equal(state.resumed,false);
+   assert.equal(resumed,0);
+   await fs.writeFile(path.join(temp,'creds.json'),JSON.stringify({registered:false}),{mode:0o600});
+   state=await wa.resumeSession({dir:temp,connectFn:async()=>{resumed++}});
+   assert.equal(state.resumed,false);
+   assert.equal(resumed,0);
+   await fs.writeFile(path.join(temp,'creds.json'),JSON.stringify({registered:true,me:{id:'5511888887777:1@s.whatsapp.net'}}),{mode:0o600});
+   assert.equal(await wa.hasRegisteredSession(temp),true);
+   state=await wa.resumeSession({dir:temp,connectFn:async()=>{resumed++}});
+   assert.equal(state.resumed,true);
+   assert.equal(state.reason,'saved-session');
+   assert.equal(resumed,1);
+ }finally{await fs.rm(temp,{recursive:true,force:true})}
+});
+test('server starts automatic restore only on startup, never on browser refresh',()=>{
+ const fs=require('node:fs');
+ const path=require('node:path');
+ const source=fs.readFileSync(path.join(__dirname,'../server.js'),'utf8');
+ assert.match(source,/waWeb\.resumeSession\(\)/);
+ assert.match(source,/if\(require\.main===module\)/);
+});
+
 test('GET cannot mutate and invalid send payload fails closed',async()=>{
  const r=await fetch(url+'/api/wa-web/connect',{headers:auth});assert.equal(r.status,404);
  const bad=await fetch(url+'/api/wa-web/send',{method:'POST',headers:{},body:JSON.stringify({text:'teste'})});assert.equal(bad.status,415);
