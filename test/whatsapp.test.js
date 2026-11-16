@@ -63,8 +63,8 @@ test('inbound to disconnected or other number does not turn on agent',async()=>{
 });
 test('GET cannot mutate and invalid send payload fails closed',async()=>{
  const r=await fetch(url+'/api/wa-web/connect',{headers:auth});assert.equal(r.status,404);
- const bad=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:JSON.stringify({text:'teste'})});assert.equal(bad.status,415);
- const invalid=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:'{' });assert.equal(invalid.status,415);
+ const bad=await fetch(url+'/api/wa-web/send',{method:'POST',headers:{Authorization:'Bearer '+ADMIN},body:JSON.stringify({text:'teste'})});assert.equal(bad.status,415);
+ const invalid=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:'{' });assert.equal(invalid.status,400);
 });
 after(async()=>{
  wa._testDisconnect();
