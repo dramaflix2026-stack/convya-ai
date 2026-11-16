@@ -53,6 +53,8 @@ function webhookReceive(req,res,raw){
   for(const m of value.messages||[]){
    const mid=String(m.id||'');if(!mid||SEEN.has(mid))continue;SEEN.add(mid);if(SEEN.size>800)SEEN.clear();
    const from=digits(m.from);
+   // Homologação de 1 contato: não guardar nem processar mensagens de outros números.
+   if(!isValidPhone(digits(process.env.CONVYA_TEST_PHONE))||from!==digits(process.env.CONVYA_TEST_PHONE))continue;
    const body=m.type==='text'?String(m.text?.body||'').slice(0,4000):'[Mídia ou mensagem do tipo '+String(m.type||'desconhecido').slice(0,30)+']';
    if(isValidPhone(from))LAST_INBOUND.set(from,Date.now());
    event({id:mid,direction:'in',real:true,phone:from,text:body,messageType:m.type||'unknown',status:'received'});count++;
@@ -87,7 +89,7 @@ async function admin(req,res,url,raw) {
    const data=parseRaw(raw);if(!data)return sendJson(res,400,{error:'JSON inválido.'});
    const to=digits(data.to),type=data.type==='template'?'template':data.type==='text'?'text':null;
    if(!isValidPhone(to)||!type)return sendJson(res,400,{error:'Informe telefone com DDI e tipo de mensagem válido.'});
-   if(process.env.CONVYA_TEST_PHONE&&to!==digits(process.env.CONVYA_TEST_PHONE))return sendJson(res,403,{error:'Homologação restrita ao telefone de teste autorizado.'});
+   if(!isValidPhone(digits(process.env.CONVYA_TEST_PHONE))||to!==digits(process.env.CONVYA_TEST_PHONE))return sendJson(res,403,{error:'Homologação bloqueada: configure CONVYA_TEST_PHONE e use exclusivamente esse telefone autorizado.'});
    const text=String(data.text||'').trim();
    if(type==='text'&&(text.length<1||text.length>1000))return sendJson(res,400,{error:'O texto precisa conter de 1 a 1000 caracteres.'});
    // User-initiated conversation opens a 24h customer-service window.
