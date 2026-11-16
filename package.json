@@ -1,14 +1,18 @@
 {
   "name": "convya-ai",
-  "version": "18.0.0",
+  "version": "19.0.0",
   "private": true,
-  "description": "Convya AI V18 - one-to-one Vendedor IA pilot for PageNova",
+  "description": "Convya AI V19 - WhatsApp QR privado, interface branca e verde, agente de vendas opt-in",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "build": "npm test && node --check server.js && node --check api/whatsapp.js && node --check api/sales-agent.js"
+    "build": "npm test && node --check server.js && node --check api/whatsapp-web.js && node --check api/sales-agent.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.24",
+    "qrcode": "1.5.4"
   }
 }
