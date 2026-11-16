@@ -56,6 +56,10 @@ function webhookReceive(req,res,raw){
    const body=m.type==='text'?String(m.text?.body||'').slice(0,4000):'[Mídia ou mensagem do tipo '+String(m.type||'desconhecido').slice(0,30)+']';
    if(isValidPhone(from))LAST_INBOUND.set(from,Date.now());
    event({id:mid,direction:'in',real:true,phone:from,text:body,messageType:m.type||'unknown',status:'received'});count++;
+   // Agent runs only when explicitly activated with an approved PageNova site
+   // and the message comes from CONVYA_TEST_PHONE. Acknowledge Meta first.
+   void require('./sales-agent').onInbound({from,text:body,type:m.type||'unknown'},{sendMessage,event})
+     .catch(()=>console.warn('[convya-agent] Incoming test message could not be processed'));
   }
   for(const s of value.statuses||[]){
    const original=EVENTS.find(e=>e.id===s.id);if(original)original.status=String(s.status||'unknown');
@@ -83,6 +87,7 @@ async function admin(req,res,url,raw) {
    const data=parseRaw(raw);if(!data)return sendJson(res,400,{error:'JSON inválido.'});
    const to=digits(data.to),type=data.type==='template'?'template':data.type==='text'?'text':null;
    if(!isValidPhone(to)||!type)return sendJson(res,400,{error:'Informe telefone com DDI e tipo de mensagem válido.'});
+   if(process.env.CONVYA_TEST_PHONE&&to!==digits(process.env.CONVYA_TEST_PHONE))return sendJson(res,403,{error:'Homologação restrita ao telefone de teste autorizado.'});
    const text=String(data.text||'').trim();
    if(type==='text'&&(text.length<1||text.length>1000))return sendJson(res,400,{error:'O texto precisa conter de 1 a 1000 caracteres.'});
    // User-initiated conversation opens a 24h customer-service window.
