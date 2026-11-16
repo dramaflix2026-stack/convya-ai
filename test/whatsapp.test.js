@@ -21,6 +21,19 @@ test('start server and render premium white/green QR page',async()=>{
  assert.match(h,/api\/wa-web\/connect/);
  assert.doesNotMatch(h,/META_WA_ACCESS_TOKEN|hello_world|Meta Developers/);
 });
+test('connected QR state clears old connection errors and the UI removes stale warnings',async()=>{
+ const page=await fetch(url+'/whatsapp.html');
+ const html=await page.text();
+ assert.match(html,/else error\('connectError',''\)/);
+ wa._testConnect(async()=>({key:{id:'mock'}}));
+ const response=await fetch(url+'/api/wa-web/status');
+ assert.equal(response.status,200);
+ const data=await response.json();
+ assert.equal(data.connected,true);
+ assert.equal(data.state,'connected');
+ assert.equal(data.error,null);
+ wa._testDisconnect();
+});
 test('QR status is accessible without passwords, with the one-phone guard still active',async()=>{
  const status=await fetch(url+'/api/wa-web/status');
  assert.equal(status.status,200);
