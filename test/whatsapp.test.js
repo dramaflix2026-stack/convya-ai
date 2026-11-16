@@ -72,6 +72,65 @@ test('inbound to disconnected or other number does not turn on agent',async()=>{
  const inbox=await fetch(url+'/api/wa-web/messages',{headers:auth});
  assert.equal((await inbox.json()).messages.length,1);
 });
+test('incoming PN message from test contact appears in real inbox',async()=>{
+ const msg={key:{id:'in-pn-0001',fromMe:false,remoteJid:PHONE+'@s.whatsapp.net'},
+   message:{conversation:'Oi do celular'}};
+ await wa.receiveChatMessage(msg);
+ const response=await fetch(url+'/api/wa-web/messages');
+ const body=await response.json();
+ assert.ok(body.messages.some(row=>row.id==='in-pn-0001'&&row.direction==='in'&&row.text==='Oi do celular'));
+});
+test('incoming LID with authorized alternative PN appears in inbox',async()=>{
+ await wa.receiveChatMessage({key:{id:'in-lid-alt-0002',fromMe:false,
+   remoteJid:'998877665544@lid',remoteJidAlt:PHONE+'@s.whatsapp.net'},
+   message:{extendedTextMessage:{text:'Chegou por LID!'}}});
+ const response=await fetch(url+'/api/wa-web/messages');
+ const body=await response.json();
+ assert.ok(body.messages.some(row=>row.id==='in-lid-alt-0002'&&row.direction==='in'&&row.text==='Chegou por LID!'));
+});
+test('incoming LID without phone hint uses only trusted Baileys PN mapping',async()=>{
+ const lid='111222333444@lid';
+ wa._testLidMapping({getPNForLID:async jid=>jid===lid?PHONE+'@s.whatsapp.net':undefined});
+ await wa.receiveChatMessage({key:{id:'in-lid-mapped-0003',fromMe:false,remoteJid:lid},
+  message:{ephemeralMessage:{message:{conversation:'LID verificado pelo WhatsApp'}}}});
+ let r=await fetch(url+'/api/wa-web/messages');let body=await r.json();
+ assert.ok(body.messages.some(row=>row.id==='in-lid-mapped-0003'));
+ await wa.receiveChatMessage({key:{id:'in-lid-unmapped-0004',fromMe:false,remoteJid:'444333222111@lid'},
+  message:{conversation:'Este identificador não foi autorizado'}});
+ r=await fetch(url+'/api/wa-web/messages');body=await r.json();
+ assert.ok(!body.messages.some(row=>row.id==='in-lid-unmapped-0004'));
+ wa._testLidMapping(null);
+});
+test('incoming LID matching known reverse mapping is authorized',async()=>{
+ wa._testLidMapping({
+  getPNForLID:async()=>undefined,
+  getLIDForPN:async pn=>pn===PHONE+'@s.whatsapp.net'?'887766554433@lid':undefined
+ });
+ await wa.receiveChatMessage({key:{id:'in-lid-reverse-0005',fromMe:false,remoteJid:'887766554433@lid'},
+  message:{conversation:'LID reconhecido pelo mapa reverso'}});
+ const r=await fetch(url+'/api/wa-web/messages');const body=await r.json();
+ assert.ok(body.messages.some(row=>row.id==='in-lid-reverse-0005'));
+ wa._testLidMapping(null);
+});
+test('messages from other phone, group and own account stay excluded',async()=>{
+ const messages=[
+  {key:{id:'ignored-other',fromMe:false,remoteJid:'5521888880000@s.whatsapp.net',
+     remoteJidAlt:PHONE+'@s.whatsapp.net'},message:{conversation:'Contato diferente'}},
+  {key:{id:'ignored-group',fromMe:false,remoteJid:'111222333@g.us',
+     senderPn:PHONE+'@s.whatsapp.net'},message:{conversation:'Grupo'}},
+  {key:{id:'ignored-own',fromMe:true,remoteJid:PHONE+'@s.whatsapp.net'},
+    message:{conversation:'Minha própria mensagem'}}
+ ];
+ for(const msg of messages)await wa.receiveChatMessage(msg);
+ const r=await fetch(url+'/api/wa-web/messages');const body=await r.json();
+ for(const msg of messages)assert.ok(!body.messages.some(row=>row.id===msg.key.id));
+ const status=await fetch(url+'/api/wa-web/status');const data=await status.json();
+ assert.ok(data.inbound.accepted>=4);
+ assert.ok(data.inbound.ignoredUnmatched>=2);
+ assert.ok(data.inbound.ignoredSelf>=1);
+ assert.ok(data.inbound.lastAcceptedAt);
+});
+
 test('GET cannot mutate and invalid send payload fails closed',async()=>{
  const r=await fetch(url+'/api/wa-web/connect',{headers:auth});assert.equal(r.status,404);
  const bad=await fetch(url+'/api/wa-web/send',{method:'POST',headers:{},body:JSON.stringify({text:'teste'})});assert.equal(bad.status,415);
