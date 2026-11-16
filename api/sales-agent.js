@@ -60,7 +60,7 @@ function setMode(mode){
   session.lastError=null;
   return publicState();
 }
-const HANDOFF=/\b(humano|atendente|pessoa real|falar com algu[eé]m|contrato|pagamento|cart[aã]o|pix|boleto|comprar agora|fechar (neg[oó]cio|venda))\b/i;
+const HANDOFF=/\b(humano|atendente|pessoa real|falar com algu[eé]m|contrato|pagamento|pre[cç]o|pre[cç]os|valores?|or[cç]amento|quanto custa|cart[aã]o|pix|boleto|comprar agora|fechar (neg[oó]cio|venda))\b/i;
 const OPT_OUT=/\b(pare|parar|n[aã]o quero|n[aã]o me (chame|mande)|cancelar conversa|stop)\b/i;
 function baseInstructions(context){
   return [
@@ -124,6 +124,9 @@ async function onInbound(message, deps){
    try{answer=await (deps.generate||generateReply)(current,current.history)}
    catch(e){current.lastError='IA indisponível; atendimento humano necessário.';current.status='human';break}
    if(current.status!=='active'||session!==current)break;
+   // Always disclose automation on the first AI reply, regardless of model output.
+   if(current.aiReplies===0&&!/\b(assistente de ia|assistente virtual|inteligência artificial)\b/i.test(answer))
+     answer=('Sou a assistente de IA da PageNova. '+answer).slice(0,400);
    const sent=await deps.sendMessage({to:current.phone,type:'text',text:answer});
    if(!sent.ok){current.lastError='Falha no envio; atendimento humano necessário.';current.status='human';break}
    current.history.push({role:'agent',text:answer,at:new Date().toISOString()});current.history=current.history.slice(-24);
