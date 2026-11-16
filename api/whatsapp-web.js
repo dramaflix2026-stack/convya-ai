@@ -49,7 +49,9 @@ async function matchesTestContact(key){
  if(!target)return false;
  const primary=String(key?.remoteJid||'');
  const normalizedLid=normalizeLid(primary);
- if(!normalizedLid&&!pnFromJid(primary))return false; // excludes groups, broadcasts and status
+ const directPhone=pnFromJid(primary);
+ if(!normalizedLid&&!directPhone)return false; // excludes groups, broadcasts and status
+ if(directPhone)return directPhone===target; // never override a different PN identity with an alternate hint
  const pnHints=[primary,key?.remoteJidAlt,key?.senderPn,key?.participantPn,key?.participantAlt,key?.remoteJidPn];
  if(pnHints.some(jid=>pnFromJid(jid)===target))return true;
  if(!normalizedLid)return false;
