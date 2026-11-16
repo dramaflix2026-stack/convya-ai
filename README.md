@@ -1,64 +1,52 @@
-# Convya AI — MVP Vendedor IA (integração com PageNova)
+# Convya AI V19 — WhatsApp por QR + Vendedor IA
 
-**Objetivo único:** homologar **uma conversa real com o seu próprio WhatsApp** depois da aprovação explícita de um site publicado na PageNova. Sem busca de leads, mensagens em massa, automações de follow-up ou cobrança.
+## Objetivo deste MVP
 
-## Fluxo
+Uma conversa privada: conectar seu WhatsApp pelo menu **Dispositivos conectados**, conversar com **um número de teste autorizado**, aprovar um site na PageNova e deixar o Vendedor IA responder depois que o contato mandar uma mensagem.
 
-1. Gere e publique um site no Builder V2 da PageNova.
-2. Com a feature flag ativada, clique **Aprovar site e testar Vendedor IA**.
-3. A PageNova verifica a autenticação, a propriedade e a publicação; emite uma autorização HMAC de 10 minutos sem incluir telefone nem dados de lead.
-4. A Convya, em `/whatsapp.html?handoff=...`, exige senha admin, valida a assinatura e associa o site ao **único** `CONVYA_TEST_PHONE`.
-5. O operador clica **Ativar IA neste site** e, manualmente, envia o template de teste `hello_world` usando o número de teste da Meta para seu celular (cadastre o destinatário na Meta antes).
-6. Quando você **responde pelo WhatsApp pessoal**, a Cloud API entrega o webhook assinado; a Convya chama a Responses API (OpenAI) e envia uma resposta **somente a esse telefone** dentro da janela de atendimento.
-7. A IA se identifica como assistente de IA, compartilha o link do site aprovado, trata dúvidas simples e não inventa preços/condições. **Pedir humano, preço, contrato ou pagamento → transferência para humano**; **não quero/parar → pausa**.
-8. Na tela, você pode pausar, assumir ou retomar o atendimento. Há teto de 15 respostas da IA por sessão.
+**Sem WhatsApp Cloud API / Meta Developers.** A conexão usa **Baileys / WhatsApp Web**, biblioteca comunitária **não oficial**. Não existe garantia de disponibilidade; desconexões e restrições de conta são possíveis. Não use para disparos, scraping ou prospecção em massa.
 
-## Configuração segura — todas as credenciais são do SERVIDOR
+## Rodando
 
-Para a **Convya** em Railway:
+O repositório está conectado ao serviço Railway `convya-ai`, ambiente `production` do projeto `desirable-reprieve` (URL preservada: https://convya-ai-production.up.railway.app/whatsapp.html).
 
-| Variável | Finalidade |
-| --- | --- |
-| `CONVYA_WA_ADMIN_KEY` | Senha de administrador de **16+ caracteres**. Digite-a somente em `/whatsapp.html`. |
-| `CONVYA_TEST_PHONE` | **Somente seu telefone** de teste: DDI+DDD+número, dígitos. Bloqueia envio a outros destinatários via interface manual. |
-| `META_WA_ACCESS_TOKEN` | Token da Meta WhatsApp Cloud API. |
-| `META_WA_PHONE_NUMBER_ID` | Phone Number ID do número de teste da Meta. |
-| `META_WA_APP_SECRET` | Segredo do app da Meta (para checar a assinatura do webhook). |
-| `META_WA_VERIFY_TOKEN` | Código escolhido por você; deve coincidir com o webhook cadastrado na Meta. |
-| `PAGENOVA_CONVYA_HANDOFF_SECRET` | Segredo aleatório de **32+ caracteres**, **idêntico** ao definido na PageNova. |
-| `OPENAI_API_KEY` | Chave da API de IA para respostas automáticas. |
-| `CONVYA_AGENT_MODEL` | Opcional. Padrão `gpt-4.1-mini`; defina um modelo disponível no seu projeto. |
+`npm start` inicia servidor Node. `npm test` executa testes isolados sem redes externas. `npm run build` bloqueia deploy caso testes falhem.
 
-**Na PageNova**: `PAGENOVA_CONVYA_HANDOFF_SECRET` (mesmo valor) e `NEXT_PUBLIC_CONVYA_AGENT_MVP=enabled`.
+Abra a interface e faça:
 
-**Webhooks na Meta:** URL `https://SEU-DOMINIO-DA-CONVYA/api/whatsapp/webhook`, campo `messages`, e Verify Token igual ao configurado. A Convya exige `X-Hub-Signature-256`. O webhook não autentica o usuário da PageNova; ele apenas reconhece eventos assinados da Meta.
+1. Em **Railway > convya-ai > Variables**, defina `CONVYA_WA_ADMIN_KEY` como senha aleatória de no mínimo 16 caracteres.
+2. Defina `CONVYA_TEST_PHONE` como **o telefone do contato que concordou em testar**, com DDI e DDD, apenas números. Deve ser **diferente** do aparelho que você vinculará via QR.
+3. Na tela da Convya, digite a senha e selecione **Gerar QR Code**.
+4. No WhatsApp do aparelho que será vinculado: **Configurações / Menu → Dispositivos conectados → Conectar dispositivo**, escaneie o QR na tela da Convya.
+5. Envie uma mensagem de teste **manual** para o número autorizado ou peça que esse contato envie uma. A conversa aparece na caixa à direita.
+6. Para ativar respostas com IA depois de aprovar um site na PageNova, complete as variáveis adicionais abaixo.
 
-**Não** compartilhe tokens, segredos ou senhas pelo chat e nunca os adicione ao GitHub.
+### Vendedor IA e site PageNova
 
-## APIs
+Além da senha e do telefone, configure no serviço Convya:
+- `OPENAI_API_KEY`: chave de API da OpenAI (segredo);
+- `PAGENOVA_CONVYA_HANDOFF_SECRET`: segredo aleatório de no mínimo 32 caracteres.
 
-- `GET /api/agent/status` — estado da sessão e prontidão, com senha admin.
-- `POST /api/agent/activate` — ativação com autorização HMAC da PageNova, senha admin e todas as variáveis prontas.
-- `POST /api/agent/mode` — alterna entre `active`, `paused` e `human`.
-- `GET/POST /api/whatsapp/webhook` — verificação e recebimento Meta.
-- `POST /api/whatsapp/send` — envio manual do template ou texto, sob senha admin e telefone restrito.
-- `GET /api/whatsapp/messages` — mensagens temporárias da sessão.
+No serviço PageNova, configure o **mesmo** `PAGENOVA_CONVYA_HANDOFF_SECRET` e `NEXT_PUBLIC_CONVYA_AGENT_MVP=enabled`. A integração na PageNova está no **PR #201**, isolado e ainda não mesclado. A PageNova valida se o site pertence ao operador e foi publicado; entrega uma autorização assinada com validade curta. A Convya valida essa autorização antes de ligar o agente.
 
-## Testes
+A IA não inicia conversas sozinha; só responde ao número autorizado quando receber uma mensagem. Se perguntarem sobre **preço, contrato, pagamento ou atendimento humano**, a IA transfere o atendimento. Se pedirem para parar, ela pausa.
 
-Execute `npm test`. `npm run build` roda testes Node e verificações de sintaxe e impede o build se houver falhas.
+### Persistência e segurança
 
-Teste integrado **com stubs**, sem enviar mensagens a número real: assinatura aprovada/alterada/expirada, um telefone, resposta simulada do agente, preço/humano, pausa/opt-out, webhook HMAC e isolamento administrativo. **Não** equivale a teste com a Meta e OpenAI em produção.
+- `CONVYA_WA_AUTH_DIR` (opcional): caminho para um **volume privado persistente da Railway**. Ex.: `/data/convya-wa-auth` (o volume deve estar montado em `/data`).
+- Sem volume, credenciais de sessão ficam em diretório temporário e o QR pode precisar ser escaneado novamente após reinícios e deploys. Nunca inclua o diretório de autenticação no GitHub.
+- **Uma instância** do serviço por sessão. A caixa de mensagens e o estado do Vendedor IA ficam na memória: mensagens e agente ativo são perdidos em reinícios.
+- A senha de administrador protege status, QR, envio, caixa de mensagens, ativação e pausa. Não compartilhe essa senha nem o QR publicamente.
+- O código filtra mensagens de outros números e limita envios manuais; nenhum envio em massa ou follow-up foi habilitado.
+- O fluxo ainda não foi homologado com QR real de um celular; testes automatizados simulam conexão e resposta.
 
-## Limitações importantes do MVP
+### API do conector QR (autorização Bearer admin)
 
-- O estado de conversas e do agente é **somente na memória**. Reiniciar/deployar perde histórico e aprovação ativa. Uma instância é requisito até existir persistência.
-- Na fase de teste, ainda **não existe** autenticação multiusuário, cobrança, agendamento de follow-up, pagamento, CRM persistido na Convya nem gestão de múltiplos números.
-- Sem um `CONVYA_TEST_PHONE`, senha admin, app Meta, OpenAI e segredo compartilhado, a IA não é ativada.
-- O agente **não inicia mensagens**; o template inicial é enviado manualmente e só ao número cadastrado. Consentimento/opt-in e regras do WhatsApp continuam obrigatórios.
-- Em indisponibilidade da IA ou erro ao enviar resposta, o agente para e marca a sessão para atendimento humano; **não** presume sucesso da venda.
-- Se a Railway não possui serviço Convya, é necessário restaurar o serviço do GitHub `dramaflix2026-stack/convya-ai` antes de testar externamente.
+- `GET /api/wa-web/status` — status e QR.
+- `POST /api/wa-web/connect` — inicia conexão por QR.
+- `POST /api/wa-web/disconnect` — desconecta e revoga sessão.
+- `GET /api/wa-web/messages` — caixa de mensagens temporárias.
+- `POST /api/wa-web/send` — envia texto manual, somente para o contato de teste.
+- `GET /api/agent/status`, `POST /api/agent/activate`, `POST /api/agent/mode` — Vendedor IA.
 
-## PageNova
-
-A integração da PageNova está no PR **#201** (branch isolada e feature flag desligada por padrão). O gerador, o motor universal, o editor, a publicação atual, o CRM e o Machine Learning continuam intocados. **Não mescle ou publique por conta de um teste simulado**: revise o PR e faça uma única homologação com número de teste primeiro.
+A API oficial do WhatsApp foi retirada do servidor nesta versão. O CRM V16 e o motor de busca continuam preservados, mas **não** são usados nesta homologação.
