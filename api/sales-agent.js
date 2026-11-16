@@ -140,7 +140,7 @@ async function handler(req,res,url,raw){
  const send=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value))}
  if(!ready().admin)return send(503,{error:'Configure CONVYA_WA_ADMIN_KEY na Railway.'});
  const bearer=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');
- if(!secretMatch(bearer,process.env.CONVYA_WA_ADMIN_KEY))return send(401,{error:'Senha de administrador inválida.'});
+ if(!require('./owner-access').authenticated(req))return send(401,{error:'Senha de administrador inválida.'});
  if(req.method==='GET'&&url.pathname==='/api/agent/status')return send(200,publicState());
  if(req.method!=='POST')return send(405,{error:'Método não permitido.'});
  let body;try{body=JSON.parse(raw.toString('utf8'))}catch{return send(400,{error:'JSON inválido.'})}
