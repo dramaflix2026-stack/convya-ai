@@ -73,6 +73,7 @@ test('one approved personal phone gets AI response; another phone is ignored',as
  assert.equal(audits.length,1);
 });
 test('signed WhatsApp webhook -> mocked OpenAI response -> mocked Meta send (no live API)',async()=>{
+ agent.activate(approvedToken()); // start fresh to exercise first-message AI disclosure
  const actualFetch=global.fetch;
  const calls=[];
  const promptBody={object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{
@@ -102,8 +103,8 @@ test('signed WhatsApp webhook -> mocked OpenAI response -> mocked Meta send (no 
    };
    const response=await global.fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-Signature-256':signed},body:raw});
    assert.equal(response.status,200);assert.equal((await response.json()).received,1);
-   for(let i=0;i<60&&agent.publicState().session.aiReplies<2;i++)await new Promise(r=>setTimeout(r,10));
-   assert.equal(agent.publicState().session.aiReplies,2);
+   for(let i=0;i<60&&agent.publicState().session.aiReplies<1;i++)await new Promise(r=>setTimeout(r,10));
+   assert.equal(agent.publicState().session.aiReplies,1);
    assert.ok(calls.some(x=>x.target==='https://api.openai.com/v1/responses'));
    assert.ok(calls.some(x=>x.target.includes('graph.facebook.com/')));
  }finally{global.fetch=actualFetch}
