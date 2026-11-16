@@ -25,12 +25,49 @@ let engine=null;
 let testConnected=false;
 let testSender=null;
 const SEND_TIMES=[];
+let testLidMapping=null;
+const INBOUND_DIAG={seen:0,accepted:0,ignoredSelf:0,ignoredUnmatched:0,lastAcceptedAt:null,lastRejectedReason:null};
 const AUTH_DIR=process.env.CONVYA_WA_AUTH_DIR||path.join(os.tmpdir(),'convya-wa-auth');
 
 const digits=x=>String(x||'').replace(/\D/g,'');
 const validPhone=x=>/^\d{10,15}$/.test(digits(x));
 const secureEqual=(x,y)=>{const a=Buffer.from(String(x||'')),b=Buffer.from(String(y||''));return a.length>0&&a.length===b.length&&timingSafeEqual(a,b)};
 const onlyPhone=()=>validPhone(process.env.CONVYA_TEST_PHONE)?digits(process.env.CONVYA_TEST_PHONE):'';
+// WhatsApp can represent the same contact as a PN JID or a private LID.
+// Never compare a LID's digits with a phone number: they are unrelated.
+const pnFromJid=x=>{
+ const v=String(x||'');
+ const m=/^(\d{10,15})(?::\d+)?@s\.whatsapp\.net$/.exec(v);
+ return m?m[1]:'';
+};
+const normalizeLid=x=>{
+ const m=/^(\d+)(?::\d+)?@lid$/.exec(String(x||''));
+ return m?m[1]+'@lid':'';
+};
+async function matchesTestContact(key){
+ const target=onlyPhone();
+ if(!target)return false;
+ const primary=String(key?.remoteJid||'');
+ const normalizedLid=normalizeLid(primary);
+ if(!normalizedLid&&!pnFromJid(primary))return false; // excludes groups, broadcasts and status
+ const pnHints=[primary,key?.remoteJidAlt,key?.senderPn,key?.participantPn,key?.participantAlt,key?.remoteJidPn];
+ if(pnHints.some(jid=>pnFromJid(jid)===target))return true;
+ if(!normalizedLid)return false;
+ // Only use explicit WhatsApp-supplied mappings for LID-only messages.
+ const mapping=testLidMapping||socket?.signalRepository?.lidMapping;
+ if(!mapping)return false;
+ try{
+   if(typeof mapping.getPNForLID==='function'){
+     const pn=await mapping.getPNForLID(primary);
+     if(pnFromJid(pn)===target)return true;
+   }
+   if(typeof mapping.getLIDForPN==='function'){
+     const lid=await mapping.getLIDForPN(target+'@s.whatsapp.net');
+     if(normalizeLid(lid)===normalizedLid)return true;
+   }
+ }catch{} // fail closed if a library does not provide mapping methods
+ return false;
+}
 function configured(){return {
   allowedPhone:!!onlyPhone(),
   ai:!!process.env.OPENAI_API_KEY,
@@ -44,6 +81,10 @@ function status(){
     configured:configured(),phoneSuffix:onlyPhone()?onlyPhone().slice(-4):null,
     transport:'WhatsApp Web (biblioteca comunitária)',official:false,
     onePhoneOnly:true,storage:process.env.CONVYA_WA_AUTH_DIR?'configured-folder':'temporary-folder',
+    inbound:{seen:INBOUND_DIAG.seen,accepted:INBOUND_DIAG.accepted,
+      ignoredSelf:INBOUND_DIAG.ignoredSelf,ignoredUnmatched:INBOUND_DIAG.ignoredUnmatched,
+      lastAcceptedAt:INBOUND_DIAG.lastAcceptedAt,
+      lastRejectedReason:INBOUND_DIAG.lastRejectedReason},
     notice:'Conexão não oficial por aparelho vinculado. Não enviar disparos em massa.'};
 }
 function pushEvent(e){
@@ -65,20 +106,36 @@ async function sendMessage({to,type,text}){
   }catch(err){lastError='Falha ao enviar: verifique a conexão do WhatsApp.';return {ok:false,error:lastError}}
 }
 async function receiveChatMessage(message){
-  if(message.key?.fromMe||!message.message)return;
-  const primary=String(message.key?.remoteJid||'');
-  const jid=primary.endsWith('@s.whatsapp.net')?primary:String(message.key?.remoteJidAlt||primary);
-  if(!jid.endsWith('@s.whatsapp.net'))return;
-  const sender=digits(jid.split('@')[0]);
-  const authorized=onlyPhone();
-  if(!authorized||sender!==authorized)return;
-  const text=message.message.conversation||message.message.extendedTextMessage?.text||'';
+  if(!message?.message)return;
+  INBOUND_DIAG.seen++;
+  // Own-account messages are not incoming customer messages.
+  if(message.key?.fromMe){INBOUND_DIAG.ignoredSelf++;INBOUND_DIAG.lastRejectedReason='own-account';return;}
+  const accepted=await matchesTestContact(message.key);
+  if(!accepted){
+    INBOUND_DIAG.ignoredUnmatched++;
+    const primary=String(message.key?.remoteJid||'');
+    INBOUND_DIAG.lastRejectedReason=normalizeLid(primary)?'unmapped-lid':'other-contact-or-format';
+    return; // never expose other contacts to this unauthenticated test panel
+  }
+  // Support ordinary text and WhatsApp's ephemeral/view-once wrappers.
+  let content=message.message;
+  for(let i=0;i<3;i++){
+    const next=content?.ephemeralMessage?.message||
+      content?.viewOnceMessage?.message||content?.viewOnceMessageV2?.message||
+      content?.documentWithCaptionMessage?.message;
+    if(!next)break;
+    content=next;
+  }
+  const text=content?.conversation||content?.extendedTextMessage?.text||'';
   if(typeof text!=='string'||!text.trim())return;
   const id=String(message.key?.id||randomUUID());
-  if(EVENTS.some(x=>x.id===id))return; // prevent duplicate agent responses on retries
+  if(EVENTS.some(x=>x.id===id))return;
+  INBOUND_DIAG.accepted++;
+  INBOUND_DIAG.lastAcceptedAt=new Date().toISOString();
+  INBOUND_DIAG.lastRejectedReason=null;
   pushEvent({id,direction:'in',real:true,text:text.slice(0,1200),status:'received'});
   try{
-    await require('./sales-agent').onInbound({from:sender,text,type:'text'},{
+    await require('./sales-agent').onInbound({from:onlyPhone(),text,type:'text'},{
       sendMessage,
       event:e=>pushEvent({id:e.id,direction:e.direction,real:true,text:e.text,status:e.status})
     });
@@ -194,5 +251,8 @@ async function handler(req,res,url,raw=Buffer.alloc(0)){
 }
 module.exports={handler,status,connect,disconnect,sendMessage,receiveChatMessage,configured,
   _testConnect(sender){testConnected=true;testSender=sender;},
-  _testDisconnect(){testConnected=false;testSender=null;EVENTS.length=0}
+  _testLidMapping(mapping){testLidMapping=mapping},
+  _testDisconnect(){testConnected=false;testSender=null;testLidMapping=null;EVENTS.length=0;
+    INBOUND_DIAG.seen=0;INBOUND_DIAG.accepted=0;INBOUND_DIAG.ignoredSelf=0;INBOUND_DIAG.ignoredUnmatched=0;
+    INBOUND_DIAG.lastAcceptedAt=null;INBOUND_DIAG.lastRejectedReason=null;}
 };
