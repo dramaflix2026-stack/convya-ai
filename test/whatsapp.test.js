@@ -2,79 +2,72 @@
 const {test,after}=require('node:test');
 const assert=require('node:assert/strict');
 const {once}=require('node:events');
-const {createHmac}=require('node:crypto');
 const server=require('../server');
-let base, original={};
-for(const k of ['CONVYA_WA_ADMIN_KEY','META_WA_ACCESS_TOKEN','META_WA_PHONE_NUMBER_ID','META_WA_APP_SECRET','META_WA_VERIFY_TOKEN','CONVYA_TEST_PHONE']){original[k]=process.env[k];delete process.env[k]}
-const secret='admin-test-password-very-long-and-private';
-const app='test-app-secret';
-const verify='test-whatsapp-verify';
-test('start and serve real inbox',async()=>{
- server.listen(0,'127.0.0.1');await once(server,'listening');base='http://127.0.0.1:'+server.address().port;
- const r=await fetch(base+'/whatsapp.html');assert.equal(r.status,200);
- const html=await r.text();assert.match(html,/canal oficial da Meta/);assert.match(html,/Conversa real/);assert.match(html,/Simulação fictícia/);
+const wa=require('../api/whatsapp-web');
+const ADMIN='test-only-strong-admin-secret-987654321';
+const PHONE='5511999887766';
+let url;
+const OLD=Object.fromEntries(['CONVYA_WA_ADMIN_KEY','CONVYA_TEST_PHONE'].map(k=>[k,process.env[k]]));
+const auth={Authorization:'Bearer '+ADMIN,'Content-Type':'application/json'};
+test('start server and render premium white/green QR page',async()=>{
+ server.listen(0,'127.0.0.1');await once(server,'listening');
+ url='http://127.0.0.1:'+server.address().port;
+ const r=await fetch(url+'/whatsapp.html');assert.equal(r.status,200);
+ const h=await r.text();
+ assert.match(h,/--bg:#f6f9f7/);
+ assert.match(h,/Gerar QR Code/);
+ assert.match(h,/api\/wa-web\/connect/);
+ assert.doesNotMatch(h,/META_WA_ACCESS_TOKEN|hello_world|Meta Developers/);
 });
-test('admin is required; missing secrets disable connection',async()=>{
- const r=await fetch(base+'/api/whatsapp/config');assert.equal(r.status,503);
- const raw=await r.json();assert.match(raw.error,/CONVYA_WA_ADMIN_KEY/);
- process.env.CONVYA_WA_ADMIN_KEY=secret;
- const a=await fetch(base+'/api/whatsapp/config',{headers:{Authorization:'Bearer wrong'}});
- assert.equal(a.status,401);
- const b=await fetch(base+'/api/whatsapp/config',{headers:{Authorization:'Bearer '+secret}});
- assert.equal(b.status,200);const x=await b.json();assert.equal(x.configured.send,false);assert.equal(x.configured.webhook,false);assert.equal(x.realMessaging,false);
- assert.ok(!JSON.stringify(x).includes(secret));
+test('reject access without server-side administrator password',async()=>{
+ delete process.env.CONVYA_WA_ADMIN_KEY;
+ const r=await fetch(url+'/api/wa-web/status');assert.equal(r.status,503);
+ process.env.CONVYA_WA_ADMIN_KEY=ADMIN;
+ const x=await fetch(url+'/api/wa-web/status');assert.equal(x.status,401);
+ const bad=await fetch(url+'/api/wa-web/status',{headers:{Authorization:'Bearer incorrect'}});assert.equal(bad.status,401);
+ const ok=await fetch(url+'/api/wa-web/status',{headers:auth});assert.equal(ok.status,200);
+ const data=await ok.json();assert.equal(data.connected,false);
+ assert.equal(data.configured.admin,true);assert.equal(data.configured.allowedPhone,false);
+ assert.doesNotMatch(JSON.stringify(data),/987654321/);
 });
-test('without Meta credentials no real messages are sent',async()=>{
- const r=await fetch(base+'/api/whatsapp/send',{method:'POST',headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json'},body:JSON.stringify({to:'5511999999999',type:'template'})});
- assert.equal(r.status,503);
+test('unconfigured test number blocks messages even when a socket is simulated',async()=>{
+ const sent=[];
+ wa._testConnect(async data=>{sent.push(data);return {key:{id:'out.fake'}}});
+ const resp=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:JSON.stringify({text:'Olá, teste'})});
+ assert.equal(resp.status,422);assert.equal(sent.length,0);
 });
-test('webhook challenge verifies only matching token',async()=>{
- process.env.META_WA_APP_SECRET=app;process.env.META_WA_VERIFY_TOKEN=verify;process.env.META_WA_PHONE_NUMBER_ID='1234567890';
- process.env.CONVYA_TEST_PHONE='5511999999999';
- const x=await fetch(base+'/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token=bad&hub.challenge=123456');
- assert.equal(x.status,403);
- const y=await fetch(base+'/api/whatsapp/webhook?hub.mode=subscribe&hub.verify_token='+verify+'&hub.challenge=123456');
- assert.equal(y.status,200);assert.equal(await y.text(),'123456');
+test('reject unrelated number even when connected',async()=>{
+ process.env.CONVYA_TEST_PHONE=PHONE;
+ let sent=[];
+ wa._testConnect(async x=>{sent.push(x);return {key:{id:'wamid.qr.mock'}}});
+ const other=await wa.sendMessage({to:'5521999000000',type:'text',text:'Oi'});
+ assert.equal(other.ok,false);assert.equal(sent.length,0);
+ const m=await wa.receiveChatMessage({key:{id:'wa.unrelated',remoteJid:'5521999000000@s.whatsapp.net'},message:{conversation:'olá'}});
+ const inbox=await fetch(url+'/api/wa-web/messages',{headers:auth});
+ assert.equal(inbox.status,200);assert.equal((await inbox.json()).messages.length,0);
 });
-test('webhook rejects unsigned bodies and accepts a correctly signed message',async()=>{
- const payload={object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{metadata:{phone_number_id:'1234567890'},messages:[{id:'wamid.TEST123',from:'5511999999999',type:'text',text:{body:'Olá da minha conta pessoal!'}}]}}]}]};
- const raw=JSON.stringify(payload);
- const a=await fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json'},body:raw});assert.equal(a.status,401);
- const signature='sha256='+createHmac('sha256',app).update(raw).digest('hex');
- const b=await fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-Signature-256':signature},body:raw});assert.equal(b.status,200);assert.equal((await b.json()).received,1);
- const c=await fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-Signature-256':signature},body:raw});assert.equal(c.status,200);assert.equal((await c.json()).received,0);
+test('allow a single explicitly authorized contact; no unsolicited autopilot',async()=>{
+ const resp=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:JSON.stringify({text:'Teste manual autorizado'})});
+ assert.equal(resp.status,200);
+ const data=await resp.json();assert.equal(data.ok,true);
+ const inbox=await fetch(url+'/api/wa-web/messages',{headers:auth});
+ const rows=(await inbox.json()).messages;
+ assert.equal(rows.length,1);assert.equal(rows[0].direction,'out');
+ assert.equal(rows[0].phone,PHONE);
 });
-test('protected inbox returns received messages without exposing secrets',async()=>{
- const a=await fetch(base+'/api/whatsapp/messages');assert.equal(a.status,401);
- const b=await fetch(base+'/api/whatsapp/messages',{headers:{Authorization:'Bearer '+secret}});assert.equal(b.status,200);
- const data=await b.json();assert.ok(data.messages.some(m=>m.id==='wamid.TEST123'&&m.real===true&&m.text.includes('conta pessoal')));
- assert.ok(!JSON.stringify(data).includes(app));
+test('inbound to disconnected or other number does not turn on agent',async()=>{
+ const result=await wa.receiveChatMessage({key:{id:'wa.unrelated2',remoteJid:'552188877766@s.whatsapp.net'},message:{conversation:'Mensagem externa'}});
+ assert.equal(result,undefined);
+ const inbox=await fetch(url+'/api/wa-web/messages',{headers:auth});
+ assert.equal((await inbox.json()).messages.length,1);
 });
-test('webhook ignores any other phone and never stores its message',async()=>{
- const payload={object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{metadata:{phone_number_id:'1234567890'},messages:[{id:'wamid.UNAUTHORIZED.01',from:'5521991239999',type:'text',text:{body:'Mensagem de outro telefone'}}]}}]}]};
- const raw=JSON.stringify(payload);
- const signature='sha256='+createHmac('sha256',app).update(raw).digest('hex');
- const response=await fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-Signature-256':signature},body:raw});
- assert.equal(response.status,200);
- assert.equal((await response.json()).received,0);
- const b=await fetch(base+'/api/whatsapp/messages',{headers:{Authorization:'Bearer '+secret}});
- const data=await b.json();
- assert.ok(!data.messages.some(m=>m.id==='wamid.UNAUTHORIZED.01'));
+test('GET cannot mutate and invalid send payload fails closed',async()=>{
+ const r=await fetch(url+'/api/wa-web/connect',{headers:auth});assert.equal(r.status,404);
+ const bad=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:JSON.stringify({text:'teste'})});assert.equal(bad.status,415);
+ const invalid=await fetch(url+'/api/wa-web/send',{method:'POST',headers:auth,body:'{' });assert.equal(invalid.status,415);
 });
-test('template send fails closed if test phone is not configured',async()=>{
- process.env.META_WA_ACCESS_TOKEN='fake-access-token';
- const originalTestPhone=process.env.CONVYA_TEST_PHONE;
- delete process.env.CONVYA_TEST_PHONE;
- const response=await fetch(base+'/api/whatsapp/send',{method:'POST',headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json'},body:JSON.stringify({to:'5511999999999',type:'template'})});
- assert.equal(response.status,403);
- const data=await response.json();
- assert.match(data.error,/CONVYA_TEST_PHONE/);
- process.env.CONVYA_TEST_PHONE=originalTestPhone;
- delete process.env.META_WA_ACCESS_TOKEN;
+after(async()=>{
+ wa._testDisconnect();
+ for(const [k,v] of Object.entries(OLD)){if(v===undefined)delete process.env[k];else process.env[k]=v}
+ await new Promise(resolve=>server.close(resolve));
 });
-
-test('clearly labeled mock message never calls the WhatsApp API',async()=>{
- const r=await fetch(base+'/api/whatsapp/mock',{method:'POST',headers:{Authorization:'Bearer '+secret,'Content-Type':'application/json'},body:JSON.stringify({phone:'55119988887777',text:'Teste fictício'})});
- assert.equal(r.status,201);const x=await r.json();assert.equal(x.message.real,false);assert.equal(x.message.status,'simulated');
-});
-after(async()=>{for(const [k,v] of Object.entries(original)){if(v===undefined)delete process.env[k];else process.env[k]=v}await new Promise(resolve=>server.close(resolve))});
