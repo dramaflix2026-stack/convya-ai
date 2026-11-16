@@ -1,152 +1,223 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>WhatsApp real | Convya AI</title>
+<meta name="theme-color" content="#ffffff"><title>WhatsApp e Vendedor IA | Convya</title>
 <style>
-:root{color-scheme:dark;--bg:#0b111a;--card:#162530;--field:#0e1d29;--line:#344e5c;--green:#b9fb69;--text:#edf6fb;--muted:#a7becb}*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:14px system-ui,Segoe UI,sans-serif}main{max-width:1240px;padding:26px 20px 60px;margin:auto}
-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:24px}
-a{color:var(--green);text-decoration:none}h1{font-size:clamp(24px,3vw,33px);margin:0}h2{margin:0 0 13px;font-size:19px}p{line-height:1.65}
-.caption{color:var(--muted);font-size:12px;line-height:1.6}.tag{display:inline-block;color:var(--green);background:#263d32;padding:7px 10px;border-radius:30px;font-size:12px;font-weight:750}
-.grid{display:grid;grid-template-columns:350px minmax(0,1fr);gap:16px}.panel{min-width:0;background:var(--card);border:1px solid var(--line);border-radius:15px;padding:19px}
-label{font-size:12px;color:var(--muted);display:block;margin:14px 0 5px}input,textarea,select{width:100%;padding:12px;background:var(--field);border:1px solid #49606c;border-radius:9px;color:var(--text);font:inherit}
-input:focus,textarea:focus{outline:2px solid var(--green)}textarea{min-height:98px;resize:vertical}
-button{cursor:pointer;border:0;border-radius:9px;background:var(--green);color:#102019;padding:11px 14px;font:inherit;font-weight:750}
-button.alt{background:#2a3b49;color:var(--text);border:1px solid #4a606b}button:disabled{opacity:.5;cursor:default}
-.actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:13px}.actions button{flex:1}
-.item{padding:11px 0;border-bottom:1px solid #314853;color:var(--muted)}.item b{color:var(--text)}
-.notice{padding:12px;border-radius:10px;background:#283d43;color:#dbe9e9;font-size:12px;line-height:1.65;margin:12px 0}
-.warning{background:#423326;color:#fce2ad}.error{color:#ffb0a1;font-weight:700;min-height:18px;font-size:12px;margin:8px 0}
-.chat{height:410px;overflow-y:auto;background:#101f2b;border:1px solid var(--line);padding:18px;border-radius:13px}
-.bubble{max-width:78%;padding:11px 13px;border-radius:12px;margin-bottom:12px;line-height:1.6;overflow-wrap:anywhere;background:#294451}
-.bubble.out{margin-left:auto;background:#34533d}.bubble.sim{border:1px dashed #698367}
-.small{font-size:10px;color:#bad1c8;display:block;margin-top:5px}
-.tabs{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}.tabs button{padding:9px 13px}.tabs button.sel{outline:2px solid #b9fb69}#realbox,#demobox{min-height:410px}
-.instructions{margin-top:16px}.instructions ol{margin:8px 0;padding-left:19px;line-height:1.75}.instructions li{margin-bottom:7px}
-code{font-size:12px;color:#c3f3a0;overflow-wrap:anywhere}
-.sectionTitle{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
-@media(max-width:800px){.grid{grid-template-columns:1fr}.chat{height:340px}main{padding:16px 11px 36px}.panel{padding:14px}}
-</style></head>
-<body><main>
-<header><div><a href="/">← Voltar ao CRM</a><h1>WhatsApp <span style="color:var(--green)">real</span></h1><div class="caption">Envio e recebimento pelo canal oficial da Meta • Homologação V18</div></div><span class="tag" id="topstatus">Não conectado</span></header>
-<div class="notice warning"><b>Dois modos diferentes:</b> simulação usa dados fictícios e <b>não</b> chega ao celular. Conversa real usa o número de teste do WhatsApp Cloud API da Meta e seu próprio telefone como destinatário, depois de configurada a API. Não é conexão por QR do WhatsApp pessoal.</div>
-<section class="panel" style="margin-bottom:16px;border-color:#55775c">
-  <div class="sectionTitle"><h2>Vendedor IA — 1 conversa de teste</h2><span class="tag" id="agentBadge">Desativado</span></div>
-  <p class="caption">A PageNova aprova um site publicado e abre esta página com uma autorização assinada. A IA só responde ao telefone de teste liberado na Railway. Não envia mensagens por iniciativa própria.</p>
-  <div id="agentSite" class="notice">Nenhum site aprovado recebido. Primeiro publique e aprove um site na PageNova.</div>
-  <div class="actions">
-    <button id="agentStart">Ativar IA neste site</button>
-    <button class="alt" id="agentPause">Pausar IA</button>
-    <button class="alt" id="agentHuman">Assumir conversa</button>
-    <button class="alt" id="agentResume">Retomar IA</button>
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color-scheme:light;--bg:#f6f9f7;--white:#fff;--ink:#15271c;--sub:#56685e;--muted:#81958a;--line:#dce9df;--light:#eaf9ed;--green:#0d8f45;--deep:#086b32;--hover:#d6f3db;--danger:#b33939;--shadow:0 10px 35px rgba(28,71,45,.06)}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-size:14px}
+a{color:var(--green);text-decoration:none}a:hover{text-decoration:underline}button,input,textarea{font:inherit}button{cursor:pointer}button:disabled{opacity:.48;cursor:not-allowed}
+.layout{display:grid;grid-template-columns:234px minmax(0,1fr);min-height:100vh}.side{background:var(--white);border-right:1px solid var(--line);padding:28px 17px;display:flex;flex-direction:column;gap:28px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:10px;font-size:23px;letter-spacing:-1px;font-weight:850;color:var(--ink)}.brandmark{width:35px;height:35px;border-radius:12px;background:var(--light);display:grid;place-items:center;color:var(--green);font-size:21px}
+.side nav{display:grid;gap:5px}.navitem{border-radius:11px;padding:12px 13px;color:#53675a;display:flex;align-items:center;gap:12px;font-weight:650}.navitem svg{width:18px;height:18px;flex-shrink:0;stroke-width:1.8}.navitem:hover{background:#f2f8f4;text-decoration:none}.navitem.active{background:var(--light);color:var(--deep)}
+.sideFoot{margin-top:auto;padding:16px;border:1px solid var(--line);border-radius:14px;background:#fcfffc}.sideFoot strong{display:block;margin-bottom:4px}
+.content{min-width:0;max-width:1500px;width:100%;padding:32px clamp(18px,3.5vw,50px) 60px;margin:0 auto}
+.head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:24px}.eyebrow{font-size:12px;color:var(--green);font-weight:700}.head h1{margin:6px 0 2px;font-size:clamp(26px,3vw,37px);letter-spacing:-1.4px}.head h1 span{color:var(--green)}.intro{color:var(--sub);margin:0;font-size:13px}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:9px 13px;border-radius:40px;border:1px solid #d5eadc;background:#eef9ef;color:var(--deep);font-weight:750;font-size:12px;white-space:nowrap}.dot{width:8px;height:8px;border-radius:99px;background:#8ba49a}.dot.on{background:#1ca94f}
+.panel{border-radius:18px;border:1px solid var(--line);background:var(--white);box-shadow:var(--shadow);padding:23px}
+.panel h2{margin:0 0 5px;letter-spacing:-.5px;font-size:18px}.muted{color:var(--sub);font-size:13px;line-height:1.65;margin:0}
+.sectionHead{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}.iconBox{width:40px;height:40px;flex:0 0 40px;background:var(--light);border-radius:13px;display:grid;place-items:center;color:var(--deep);font-size:20px}
+.hero{position:relative;overflow:hidden;background:linear-gradient(115deg,#fff 58%,#eefaf0);margin-bottom:17px}.hero:after{content:"";position:absolute;width:290px;height:290px;border-radius:50%;border:45px solid rgba(50,164,79,.06);right:-98px;top:-192px;pointer-events:none}
+.heroTop{display:flex;align-items:start;justify-content:space-between;gap:12px}.hero p{max-width:810px}.notice{padding:12px 14px;border-radius:11px;background:#eff9ef;border:1px solid #cfead2;color:#1d5933;font-size:12px;line-height:1.6;margin:17px 0}.notice.warn{background:#fff9ec;border-color:#f4e0b1;color:#86622b}.notice.error{background:#fff1f1;border-color:#f1d0d0;color:#9f3131}
+.buttonRow{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.buttonRow>*{flex:1}
+.btn{border:1px solid var(--green);border-radius:10px;padding:11px 16px;font-weight:750;min-height:44px;background:#fff;color:var(--deep)}.btn:hover:not(:disabled){background:var(--light)}
+.btn.primary{background:linear-gradient(120deg,#18ad51,#06783a);color:#fff;border-color:#0a9347}.btn.primary:hover:not(:disabled){filter:brightness(.96)}
+.btn.weak{background:#f7fbf8;border-color:#d7e7dd;color:#456650}
+.btn.danger{color:#a04444;border-color:#efcaca;background:#fff}
+.grid{display:grid;grid-template-columns:minmax(310px,420px) minmax(0,1fr);gap:16px;align-items:stretch}
+label{display:block;margin:14px 0 6px;color:#355342;font-size:12px;font-weight:750}
+.field,textarea{width:100%;border-radius:11px;border:1px solid #d5e2d8;background:#fcfefd;color:var(--ink);padding:12px 13px;outline:none}
+.field:focus,textarea:focus{border-color:var(--green);box-shadow:0 0 0 3px #c7f0d2}
+textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
+.hint{margin:8px 0 0;color:var(--muted);font-size:12px;line-height:1.6}
+.flex{display:flex;gap:9px;align-items:center}.flex .field{flex:1;min-width:0}.flex button{flex-shrink:0}
+.qrArea{border-radius:15px;background:linear-gradient(180deg,#f8fdf9,#fff);border:1px dashed #badbc4;min-height:250px;margin:18px 0 15px;display:grid;place-items:center;text-align:center;padding:20px}
+.qrArea img{display:block;margin:0 auto;max-width:220px;width:100%;height:auto;background:white;padding:9px;border-radius:14px;border:1px solid var(--line)}
+.qrEmoji{width:74px;height:74px;display:grid;place-items:center;border-radius:22px;background:var(--light);font-size:40px;margin:0 auto 13px;color:var(--green)}
+.qrArea strong{font-size:16px;display:block;margin-bottom:5px}.qrArea .muted{max-width:310px}
+.statusRows{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.chip{font-size:11px;border-radius:30px;padding:7px 10px;background:#f1f7f3;border:1px solid #e1ede4;color:#416a50}
+.chatBox{padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:670px}
+.chatHeader{padding:23px 23px 15px;border-bottom:1px solid var(--line)}
+.tabBar{display:flex;gap:7px;margin-top:13px}.tab{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 13px;color:#5f7065;font-weight:750}.tab.sel{color:var(--deep);border-color:#a9ddbb;background:var(--light)}
+.chatWindow{height:390px;overflow-y:auto;padding:18px 22px;background:radial-gradient(ellipse at top left,#f0faf2 0%,#fff 46%);flex:1;min-height:340px}
+.empty{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:9px}.empty .qrEmoji{margin:0 0 3px}.empty strong{font-size:17px}.empty .muted{max-width:300px}
+.bubble{max-width:78%;width:max-content;padding:12px 14px;margin:0 0 10px;border-radius:14px 14px 14px 3px;background:#ecf1ed;border:1px solid #e2ebe4;overflow-wrap:anywhere;white-space:pre-wrap;line-height:1.55}
+.bubble.out{margin-left:auto;background:#d8f6df;border-color:#c4edd0;border-radius:14px 14px 3px 14px}
+.bubble.demo{border-style:dashed}.tiny{font-size:10px;color:#63816c;margin-top:5px}
+.compose{padding:15px 20px 18px;background:#fff;border-top:1px solid var(--line)}.compose .flex button{align-self:stretch;min-width:100px}
+.agent{margin-top:17px}.agent .buttonRow{margin-top:14px}.agentBanner{background:#f0fbf1;border:1px solid #d4ead7;border-radius:11px;padding:12px;margin-top:14px;font-size:12px;color:#275f38;line-height:1.6}
+.help{display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;margin-top:16px}
+.steps{display:flex;gap:16px;flex-wrap:wrap}.step{display:flex;align-items:flex-start;gap:8px;flex:1;min-width:160px;font-size:12px;line-height:1.6;color:#4e6455}.num{flex:0 0 23px;width:23px;height:23px;border-radius:50%;background:#d9f5df;display:grid;place-items:center;color:#066c32;font-size:12px;font-weight:850}
+.alert{margin:11px 0 0;color:#a54040;font-size:12px;line-height:1.6;min-height:16px}.positive{color:var(--deep)}
+.footer{font-size:11px;color:#779081;margin-top:20px;line-height:1.6}
+@media(max-width:1050px){.layout{grid-template-columns:78px 1fr}.side{padding:24px 10px;align-items:center}.brand span,.navitem span,.sideFoot{display:none}.navitem{padding:12px}.grid{grid-template-columns:minmax(290px,370px) minmax(0,1fr)}}
+@media(max-width:760px){.layout{display:block}.side{height:auto;position:relative;width:100%;display:flex;flex-direction:row;padding:10px 14px;justify-content:space-between}.brand span{display:inline}.side nav{display:flex;gap:6px}.side .navitem:not(.active){display:none}.side .navitem span{display:inline}.content{padding:18px 12px 50px}.head{align-items:flex-start}.pill{font-size:11px;padding:8px}.panel{padding:17px}.grid{grid-template-columns:minmax(0,1fr)}.chatBox{min-height:540px}.chatWindow{height:320px;min-height:320px}.heroTop{flex-direction:column}.help{grid-template-columns:1fr}.buttonRow>*{min-width:140px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style></head><body>
+<div class="layout">
+<aside class="side">
+  <a class="brand" href="/" aria-label="Convya CRM"><span class="brandmark">◉</span><span>Convya</span></a>
+  <nav aria-label="Navegação">
+    <a class="navitem" href="/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/></svg><span>Voltar ao CRM</span></a>
+    <a class="navitem active" href="#conectar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20 11.5a8.5 8.5 0 0 1-8.5 8.5 9 9 0 0 1-4-.9L3 20l1-4a9 9 0 1 1 16-4.5Z"/><path d="M8 9c2 4 3 5 7 6"/></svg><span>WhatsApp</span></a>
+    <a class="navitem" href="#vendedor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="6" width="16" height="14" rx="3"/><path d="M12 2v4M9 12h.01M15 12h.01M8 16h8"/></svg><span>Vendedor IA</span></a>
+    <a class="navitem" href="#conversas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8 10h8M8 14h5"/></svg><span>Conversa</span></a>
+  </nav>
+  <div class="sideFoot"><strong>Teste privado</strong><p class="muted">Somente um número autorizado. Sem disparos ou listas de contatos.</p></div>
+</aside>
+<main class="content">
+  <header class="head">
+    <div><a class="eyebrow" href="/">← Voltar ao CRM</a><h1>Seu WhatsApp. <span>Sua IA.</span></h1><p class="intro">Vincule seu aparelho e teste uma conversa com o Vendedor IA da PageNova.</p></div>
+    <span class="pill" id="topStatus"><span class="dot" id="dot"></span><span id="topLabel">Desconectado</span></span>
+  </header>
+
+  <section class="panel hero" aria-label="Primeiro teste">
+    <div class="heroTop"><div class="sectionHead"><span class="iconBox">✦</span><div><h2>Simples como abrir o WhatsApp</h2><p class="muted">Escaneie o QR com o celular, envie uma mensagem de teste e acompanhe tudo na caixa ao lado. Sem Meta Developers, sem API oficial ou configuração de webhooks.</p></div></div><span class="pill">MVP · 1 conversa</span></div>
+    <div class="notice warn">A conexão por QR utiliza uma biblioteca comunitária do WhatsApp Web, <strong>não oficial</strong>. Pode desconectar ou sofrer restrições. Use apenas para testar com um contato que concordou em participar.</div>
+  </section>
+
+  <div class="grid">
+    <section class="panel" id="conectar" aria-label="Conectar seu WhatsApp">
+      <div class="sectionHead"><span class="iconBox">◉</span><div><h2>1. Conecte seu WhatsApp</h2><p class="muted">Acesse seu WhatsApp no celular → Dispositivos conectados → Conectar dispositivo.</p></div></div>
+      <label for="admin">Senha do painel Convya</label><input class="field" id="admin" type="password" autocomplete="off" placeholder="Senha definida na Railway" aria-describedby="adminHint">
+      <p class="hint" id="adminHint">Essa senha é criada uma vez em <code>CONVYA_WA_ADMIN_KEY</code> na Railway. Nunca compartilhe a senha por mensagem.</p>
+      <div class="qrArea" id="qrArea" aria-live="polite">
+        <div id="qrInitial"><span class="qrEmoji">▦</span><strong>Seu QR Code aparecerá aqui</strong><p class="muted">Clique em “Gerar QR Code” para vincular seu aparelho com segurança.</p></div>
+        <div id="qrReady" hidden><img id="qrImg" alt="QR Code para conectar o seu WhatsApp ao painel Convya"><p class="hint">Escaneie pelo WhatsApp no celular. Não compartilhe este código.</p></div>
+        <div id="qrConnected" hidden><span class="qrEmoji">✓</span><strong>WhatsApp conectado!</strong><p class="muted">Pode conversar com seu contato de teste na caixa ao lado.</p></div>
+      </div>
+      <div class="buttonRow"><button class="btn primary" id="connect" type="button">Gerar QR Code</button><button class="btn danger" id="disconnect" type="button" disabled>Desconectar</button></div>
+      <p id="connectError" class="alert" role="status" aria-live="polite"></p>
+      <div class="statusRows"><span class="chip" id="phoneStatus">Contato de teste: não configurado</span><span class="chip" id="storageStatus">Sessão temporária</span></div>
+      <p class="hint">Para evitar enviar mensagens a outras pessoas, informe <code>CONVYA_TEST_PHONE</code> na Railway. Use um número de teste <strong>diferente</strong> do aparelho vinculado.</p>
+    </section>
+
+    <section class="panel chatBox" id="conversas" aria-label="Caixa de conversas">
+      <div class="chatHeader"><div class="sectionHead" style="margin-bottom:0"><span class="iconBox">☏</span><div style="flex:1"><h2>2. Sua conversa de teste</h2><p class="muted" id="messageCounter">Nenhuma mensagem ainda</p></div></div>
+        <div class="tabBar" role="tablist" aria-label="Tipo de conversa"><button class="tab sel" id="realTab" role="tab" aria-selected="true" type="button">Conversa real</button><button class="tab" id="demoTab" role="tab" aria-selected="false" type="button">Simulação fictícia</button></div>
+      </div>
+      <div class="chatWindow" id="messages" aria-live="polite">
+        <div class="empty"><span class="qrEmoji">☏</span><strong>A conversa aparecerá aqui</strong><p class="muted">Conecte o WhatsApp para enviar e receber mensagens do número autorizado.</p></div>
+      </div>
+      <div class="compose"><label for="message" style="margin-top:0">Sua mensagem</label><div class="flex"><textarea id="message" maxlength="1000" placeholder="Escreva uma mensagem para o contato de teste..."></textarea><button id="send" class="btn primary" type="button" disabled>Enviar</button></div><p class="hint" id="composeHint">Somente seu contato de teste poderá receber mensagens reais.</p><p class="alert" id="sendError" role="status" aria-live="polite"></p></div>
+    </section>
   </div>
-  <p id="agentError" role="status" aria-live="polite" class="error"></p>
-  <p class="caption">Para testar: ative a IA, envie o template hello_world ao seu número pessoal, responda no celular e veja a resposta gerada. Para valores, contratos e pagamentos, o agente encaminha a um humano.</p>
-</section>
-<div class="grid">
-<section class="panel">
-<h2>1. Configuração da conversa real</h2>
-<p class="caption">A senha fica só nesta aba e é enviada exclusivamente ao seu servidor Railway. Os tokens de acesso à Meta ficam nas variáveis privadas do Railway, nunca nesta página.</p>
-<label for="admin">Senha de administrador da Convya</label>
-<input id="admin" type="password" autocomplete="off" placeholder="CONVYA_WA_ADMIN_KEY">
-<div class="actions"><button id="connect">Verificar integração</button><button class="alt" id="refresh">Atualizar mensagens</button></div>
-<div id="err" class="error" role="status" aria-live="polite"></div>
-<div id="state" class="item">Nenhuma verificação realizada.</div>
-<div class="item"><b>URL do webhook Meta:</b><div><code id="webhook"></code></div><button class="alt" id="copyWebhook" style="margin-top:8px">Copiar webhook</button></div>
-<label for="phone">Seu telefone de teste (DDI + DDD)</label>
-<input id="phone" type="tel" inputmode="tel" placeholder="Ex.: 5511999999999">
-<div class="notice">Antes do primeiro envio, cadastre e confirme esse telefone em <b>WhatsApp → API Setup → To</b> no painel da Meta.</div>
-<div class="actions"><button id="template">Enviar hello_world</button></div>
-<label for="message">Responder pela Convya</label>
-<textarea id="message" maxlength="1000" placeholder="Depois de responder no seu WhatsApp pessoal, digite uma mensagem aqui..."></textarea>
-<div class="actions"><button id="send">Enviar resposta</button></div>
-<p class="caption">Texto livre exige uma resposta recente do telefone destinatário (janela de 24 horas). O template hello_world inicia o primeiro contato de teste.</p>
-</section>
-<section class="panel">
-<div class="sectionTitle"><h2>2. Caixa de mensagens</h2><span class="caption" id="last">Nenhuma mensagem</span></div>
-<div class="tabs"><button id="realTab" class="sel alt">Conversa real</button><button id="demoTab" class="alt">Simulação fictícia</button></div>
-<div id="realbox"><div id="realMessages" class="chat"><div class="caption">Conecte sua Meta Cloud API para visualizar as mensagens reais aqui.</div></div>
-<p class="caption">As mensagens são recebidas por webhook assinado pela Meta. Neste primeiro MVP, o histórico fica temporariamente na memória do servidor e se perde em reinícios ou deploys.</p></div>
-<div id="demobox" hidden><div id="demoMessages" class="chat"></div><label for="demoText">Mensagem de teste local</label><div class="actions"><input id="demoText" placeholder="Escreva qualquer coisa para simular"><button id="demoSend">Simular resposta</button></div><p class="caption">Nenhuma mensagem simulada usa a API Meta ou gera cobrança.</p></div>
-</section></div>
-<section class="panel instructions"><h2>Conexão inicial com a Meta — uma vez só</h2>
-<ol>
-<li>Entre em <a href="https://developers.facebook.com/apps/" target="_blank" rel="noopener noreferrer">Meta for Developers</a>, crie/abra um aplicativo empresarial e adicione o produto <b>WhatsApp</b>. Em API Setup, use o <b>número de teste</b>.</li>
-<li>No serviço <b>convya-ai → Variables</b> da Railway, configure <code>CONVYA_WA_ADMIN_KEY</code> (sua senha longa), <code>META_WA_ACCESS_TOKEN</code>, <code>META_WA_PHONE_NUMBER_ID</code>, <code>META_WA_APP_SECRET</code> e <code>META_WA_VERIFY_TOKEN</code>. A senha e o verify token você escolhe; o access token, Phone Number ID e App Secret vêm da Meta. Não coloque nenhuma credencial no GitHub.</li>
-<li>Na Meta, adicione seu número pessoal como <b>destinatário de teste</b> e confirme a verificação no celular.</li>
-<li>Na configuração de <b>Webhooks</b> da Meta, use a URL exibida acima, coloque o mesmo <code>META_WA_VERIFY_TOKEN</code> e assine o evento <code>messages</code>. A Convya valida a assinatura com o App Secret.</li>
-<li>Volte aqui, verifique a integração, envie o template, responda no celular e clique em <b>Atualizar mensagens</b>.</li>
-</ol>
-<p class="caption">Para utilizar o mesmo número do WhatsApp Business como remetente e continuar no aplicativo, existe a opção de coexistência (quando disponível). O número pessoal padrão não se conecta por QR à API oficial.</p>
-</section></main>
+
+  <section class="panel agent" id="vendedor" aria-label="Vendedor IA">
+    <div class="heroTop"><div class="sectionHead" style="margin-bottom:0"><span class="iconBox">✦</span><div><h2>3. Vendedor IA</h2><p class="muted">Quando houver um site aprovado na PageNova, a IA poderá apresentá-lo ao seu contato de teste e responder às dúvidas.</p></div></div><span class="pill" id="agentBadge"><span class="dot"></span> Inativo</span></div>
+    <div class="agentBanner" id="agentSite">Nenhum site aprovado recebido. Primeiro publique e aprove um site na PageNova.</div>
+    <div class="buttonRow"><button class="btn primary" id="agentStart" type="button">Ativar vendedor IA</button><button class="btn" id="agentPause" type="button" disabled>Pausar IA</button><button class="btn" id="agentHuman" type="button" disabled>Assumir conversa</button><button class="btn" id="agentResume" type="button" disabled>Retomar IA</button></div>
+    <p class="alert" id="agentError" role="status" aria-live="polite"></p>
+    <p class="hint">A IA só responde depois que o contato autorizado enviar uma mensagem. Pedidos de preço, pagamento ou atendimento humano interrompem a automação.</p>
+  </section>
+
+  <section class="panel help" aria-label="Como começar">
+    <div><h2>Pronto para testar?</h2><p class="muted">São apenas três passos. Não há necessidade de configurar a API do WhatsApp da Meta.</p></div>
+    <div class="steps"><div class="step"><span class="num">1</span><span>Configure a senha e o número autorizado na Railway.</span></div><div class="step"><span class="num">2</span><span>Vincule o celular pelo QR Code.</span></div><div class="step"><span class="num">3</span><span>Converse e, depois, ative a IA com um site aprovado.</span></div></div>
+  </section>
+  <p class="footer">Convya V19 · Teste privado do WhatsApp Web · Sessão e conversas temporárias se não houver armazenamento persistente. <a href="https://railway.com/project/5b1cd631-b4e0-4eb0-af20-6150c55fe022" target="_blank" rel="noopener noreferrer">Variáveis da Railway</a></p>
+</main></div>
 <script>
-(() => {
+(()=>{
 'use strict';
 const el=id=>document.getElementById(id);
-const msg=el('realMessages'),dmsg=el('demoMessages');
-
 const handoff=new URLSearchParams(location.search).get('handoff')||'';
-if(handoff){
-  history.replaceState(null,'',location.pathname);
-  el('agentSite').textContent='Autorização de site recebida da PageNova. Informe a senha e clique em Ativar IA para validar.';
+if(handoff)history.replaceState(null,'',location.pathname);
+let key='',mode='real',connected=false,statusReady=false,lastMsgs=[],polling=false;
+const demos=[{direction:'in',text:'Olá! Esta mensagem é fictícia. Experimente a conversa sem conectar seu WhatsApp.',real:false,at:new Date().toISOString()}];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const error=(id,msg='')=>el(id).textContent=msg;
+function auth(){key=el('admin').value.trim();if(!key){error('connectError','Digite a senha do painel, configurada na Railway.');return false}return true}
+async function api(path,body){
+ const args={headers:{Authorization:'Bearer '+key}};
+ if(body!==undefined){args.method='POST';args.headers['Content-Type']='application/json';args.body=JSON.stringify(body)}
+ const response=await fetch(path,args);const data=await response.json().catch(()=>({}));
+ if(!response.ok)throw Error(data.error||'A operação falhou (HTTP '+response.status+').');return data;
 }
-function agentError(message=''){el('agentError').textContent=message}
-function showAgent(data){
-  const current=data.session;
-  el('agentBadge').textContent=current
-    ?({active:'IA ativa',paused:'IA pausada',human:'Humano assumiu'}[current.status]||current.status)
-    :'Inativo';
-  if(current){
-    el('agentSite').textContent=current.businessName+' · '+current.siteUrl+' · '+current.aiReplies+' resposta(s) da IA · teste final '+current.phoneSuffix;
-  }else if(!handoff){el('agentSite').textContent='Nenhum site aprovado nesta sessão. Aprove o site publicado na PageNova para iniciar.'}
-  el('agentPause').disabled=!current||current.status!=='active';
-  el('agentHuman').disabled=!current||current.status==='human';
-  el('agentResume').disabled=!current||current.status==='active';
+function updateStatus(data){
+ statusReady=true;connected=Boolean(data.connected);
+ const connecting=data.state==='connecting'||data.state==='qr-ready';
+ el('topLabel').textContent=connected?'Conectado':connecting?'Aguardando QR':'Desconectado';
+ el('dot').classList.toggle('on',connected);
+ el('phoneStatus').textContent=data.configured?.allowedPhone?'Contato autorizado: final '+data.phoneSuffix:'Contato de teste: configure na Railway';
+ el('storageStatus').textContent=data.configured?.persistentStorage?'Armazenamento configurado':'Sessão temporária';
+ el('qrInitial').hidden=Boolean(data.qr)||connected;
+ el('qrReady').hidden=!data.qr||connected;
+ el('qrConnected').hidden=!connected;
+ if(data.qr&&!connected)el('qrImg').src=data.qr;
+ if(data.state==='connecting'&&!data.qr)el('qrInitial').innerHTML='<span class="qrEmoji">◌</span><strong>Gerando QR Code...</strong><p class="muted">Aguarde a conexão com o WhatsApp Web.</p>';
+ if(data.state==='disconnected'&&!data.qr)el('qrInitial').innerHTML='<span class="qrEmoji">▦</span><strong>Seu QR Code aparecerá aqui</strong><p class="muted">Clique em “Gerar QR Code” para conectar.</p>';
+ el('connect').textContent=connecting?'Atualizar conexão':connected?'WhatsApp conectado':'Gerar QR Code';
+ el('connect').disabled=connected;
+ el('disconnect').disabled=!connected&&!connecting;
+ el('send').disabled=mode==='real'&&!connected;
+ if(data.error&&!connected)error('connectError',data.error);
 }
-async function agentStatus(){
-  if(!key)return;
-  try{showAgent(await api('/api/agent/status'))}catch(e){agentError(e.message)}
+function render(list){
+ const host=el('messages');
+ if(!list.length){host.innerHTML='<div class="empty"><span class="qrEmoji">☏</span><strong>Nenhuma mensagem ainda</strong><p class="muted">Conecte seu WhatsApp e converse apenas com o contato autorizado.</p></div>';return}
+ host.innerHTML=list.slice(-100).map(m=>'<div class="bubble '+(m.direction==='out'?'out':'')+' '+(!m.real?'demo':'')+'"><div>'+esc(m.text)+'</div><div class="tiny">'+(m.direction==='out'?'Você / Convya':'Contato de teste')+(m.real?'':' · Fictícia')+' · '+esc(m.status||'')+'</div></div>').join('');
+ host.scrollTop=host.scrollHeight;
 }
+async function status(){if(!key)return;if(polling)return;polling=true;try{
+ const data=await api('/api/wa-web/status');updateStatus(data);
+ if(mode==='real')await refresh(false);
+ await agentStatus();
+}catch(e){error('connectError',e.message)}finally{polling=false}}
+async function connect(){if(!auth())return;error('connectError');el('connect').disabled=true;
+ try{updateStatus(await api('/api/wa-web/connect',{}));await status()}
+ catch(e){error('connectError',e.message);el('connect').disabled=false}
+}
+async function disconnect(){if(!auth())return;
+ if(!confirm('Desconectar e desvincular este WhatsApp? Será preciso escanear o QR novamente.'))return;
+ try{updateStatus(await api('/api/wa-web/disconnect',{}));await refresh(false)}
+ catch(e){error('connectError',e.message)}
+}
+async function refresh(showError=true){if(mode!=='real'||!key)return;
+ try{const data=await api('/api/wa-web/messages');lastMsgs=data.messages||[];render(lastMsgs);el('messageCounter').textContent=lastMsgs.length+' mensagem(ns) da conversa real';if(showError)error('sendError')}
+ catch(e){if(showError)error('sendError',e.message)}}
+function setMode(value){mode=value;const real=value==='real';
+ el('realTab').classList.toggle('sel',real);el('demoTab').classList.toggle('sel',!real);
+ el('realTab').setAttribute('aria-selected',String(real));el('demoTab').setAttribute('aria-selected',String(!real));
+ el('composeHint').textContent=real?'A mensagem será enviada de verdade, somente para seu contato de teste.':'Modo fictício: nada será enviado ao WhatsApp.';
+ el('message').placeholder=real?'Escreva uma mensagem para o contato de teste...':'Digite uma mensagem fictícia...';
+ el('send').disabled=real&&!connected;
+ el('messageCounter').textContent=real?lastMsgs.length+' mensagem(ns) reais':demos.length+' mensagem(ns) fictícias';
+ render(real?lastMsgs:demos);if(real)refresh(false);
+}
+async function send(){const text=el('message').value.trim();if(!text)return;
+ if(mode==='demo'){demos.push({direction:'out',text,real:false,status:'simulated'});demos.push({direction:'in',text:'Resposta fictícia: '+text,real:false,status:'simulated'});el('message').value='';setMode('demo');return}
+ if(!auth())return;if(!connected){error('sendError','Conecte seu WhatsApp primeiro.');return}
+ el('send').disabled=true;error('sendError');
+ try{await api('/api/wa-web/send',{text});el('message').value='';await refresh(false)}
+ catch(e){error('sendError',e.message)}finally{el('send').disabled=!connected}
+}
+function showAgent(result){
+ const s=result.session;
+ el('agentBadge').textContent=s?({active:'IA ativa',paused:'IA pausada',human:'Atendimento humano'}[s.status]||s.status):'IA inativa';
+ if(s){el('agentSite').textContent=s.businessName+' • '+s.siteUrl+' • '+s.aiReplies+' resposta(s) geradas • contato final '+s.phoneSuffix}
+ else if(handoff)el('agentSite').textContent='Site enviado pela PageNova. Para validar a aprovação, conecte o WhatsApp e clique em Ativar vendedor IA.';
+ el('agentPause').disabled=!s||s.status!=='active';
+ el('agentHuman').disabled=!s||s.status==='human';
+ el('agentResume').disabled=!s||s.status==='active';
+}
+async function agentStatus(){if(!key)return;try{showAgent(await api('/api/agent/status'))}catch(e){}}
 async function agentActivate(){
-  key=el('admin').value.trim();
-  agentError();
-  if(!handoff){agentError('Aprovação ausente. Abra pelo botão Aprovar site e testar Vendedor IA da PageNova.');return}
-  if(!key){agentError('Digite a senha de administrador.');return}
-  if(!confirm('Ativar a IA APENAS para seu número pessoal de teste? A IA não abordará outros leads.'))return;
-  try{showAgent(await api('/api/agent/activate',{handoff}));await refresh()}catch(e){agentError(e.message)}
+ if(!auth())return;error('agentError');
+ if(!handoff){error('agentError','Primeiro publique e aprove um site no Builder da PageNova. O botão de aprovação abre esta página com o contexto do site.');return}
+ if(!connected){error('agentError','Conecte o WhatsApp pelo QR primeiro.');return}
+ if(!confirm('Ativar o Vendedor IA SOMENTE para o número de teste autorizado? Nenhum lead externo será abordado.'))return;
+ try{showAgent(await api('/api/agent/activate',{handoff}))}catch(e){error('agentError',e.message)}
 }
 async function agentMode(mode){
-  key=el('admin').value.trim();
-  if(!key){agentError('Digite a senha de administrador.');return}
-  try{showAgent(await api('/api/agent/mode',{mode}));agentError()}catch(e){agentError(e.message)}
+ if(!auth())return;
+ try{showAgent(await api('/api/agent/mode',{mode}));error('agentError')}catch(e){error('agentError',e.message)}
 }
+el('connect').onclick=connect;el('disconnect').onclick=disconnect;el('send').onclick=send;
+el('realTab').onclick=()=>setMode('real');el('demoTab').onclick=()=>setMode('demo');
 el('agentStart').onclick=agentActivate;
-el('agentPause').onclick=()=>agentMode('paused');
-el('agentHuman').onclick=()=>agentMode('human');
-el('agentResume').onclick=()=>agentMode('active');
-
-let key='',mode='real',loading=false;
-const samples=[{direction:'in',text:'Olá! Esta é uma conversa fictícia para testar a interface.',real:false,at:new Date().toISOString()}];
-const escape=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-function render(target,items){target.innerHTML=items.length?items.map(m=>'<div class="bubble '+(m.direction==='out'?'out':'')+' '+(!m.real?'sim':'')+'"><div>'+escape(m.text)+'</div><span class="small">'+escape(m.direction==='out'?'Enviada':'Recebida')+' · '+escape(m.real?'Meta API':'Fictícia')+' · '+escape(m.status||'')+'</span></div>').join(''):'<div class="caption">Nenhuma mensagem recebida ainda.</div>';target.scrollTop=target.scrollHeight}
-function err(text=''){el('err').textContent=text}
-async function api(path,body){
- const config={headers:{Authorization:'Bearer '+key}};if(body){config.method='POST';config.headers['Content-Type']='application/json';config.body=JSON.stringify(body)}
- const response=await fetch(path,config);const data=await response.json().catch(()=>({}));if(!response.ok)throw new Error(data.error||'Erro HTTP '+response.status);return data
-}
-async function check(){key=el('admin').value.trim();err();if(!key){err('Digite a senha de administrador definida na Railway.');return}
- try{const data=await api('/api/whatsapp/config');const c=data.configured;el('state').innerHTML='<b>Administrador:</b> '+(c.admin?'OK':'Ausente')+'<br><b>Envio Meta:</b> '+(c.send?'Configurado':'Pendente')+'<br><b>Webhook:</b> '+(c.webhook?'Configurado':'Pendente')+'<br><b>Histórico:</b> temporário (MVP)';el('topstatus').textContent=data.realMessaging?'Meta configurada':'Configuração pendente';el('webhook').textContent=data.webhookUrl;await refresh();await agentStatus()}catch(e){err(e.message)}
-}
-async function refresh(){if(!key)return;if(loading)return;loading=true;try{const data=await api('/api/whatsapp/messages');render(msg,data.messages);el('last').textContent=data.messages.length+' mensagem(ns)';err()}catch(e){err(e.message)}finally{loading=false}}
-async function send(type){key=el('admin').value.trim();const to=el('phone').value.replace(/\D/g,'');if(!/^\d{10,15}$/.test(to)){err('Digite o telefone com DDI e DDD, somente números.');return}if(!key){err('Digite a senha de administrador.');return}const text=el('message').value.trim();if(type==='text'&&!text){err('Escreva a mensagem.');return}
- if(!window.confirm(type==='template'?'Enviar o template oficial hello_world da Meta para '+to+'?':'Enviar esta mensagem REAL pelo WhatsApp para '+to+'?'))return;
- try{err();const r=await api('/api/whatsapp/send',{to,type,text});if(r.ok){if(type==='text')el('message').value='';await refresh()} }catch(e){err(e.message)}
-}
-function demo(){const text=el('demoText').value.trim();if(!text)return;samples.push({direction:'out',text,real:false,status:'simulated'});samples.push({direction:'in',text:'Recebido (resposta fictícia): '+text,real:false,status:'simulated'});render(dmsg,samples);el('demoText').value=''}
-function setMode(v){mode=v;el('realbox').hidden=v!=='real';el('demobox').hidden=v!=='demo';el('realTab').classList.toggle('sel',v==='real');el('demoTab').classList.toggle('sel',v==='demo');if(v==='real')refresh()}
-el('webhook').textContent=location.origin+'/api/whatsapp/webhook';
-el('copyWebhook').onclick=()=>navigator.clipboard?.writeText(el('webhook').textContent);
-el('connect').onclick=check;el('refresh').onclick=refresh;el('template').onclick=()=>send('template');el('send').onclick=()=>send('text');
-el('demoSend').onclick=demo;el('realTab').onclick=()=>setMode('real');el('demoTab').onclick=()=>setMode('demo');el('demoText').onkeydown=e=>{if(e.key==='Enter')demo()};
-render(dmsg,samples);setInterval(()=>{if(mode==='real'&&key&&!document.hidden){refresh();agentStatus()}},5000);
+el('agentPause').onclick=()=>agentMode('paused');el('agentHuman').onclick=()=>agentMode('human');el('agentResume').onclick=()=>agentMode('active');
+el('admin').addEventListener('keydown',e=>{if(e.key==='Enter')connect()});
+el('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
+if(handoff)el('agentSite').textContent='Site enviado pela PageNova. Conecte o WhatsApp e ative o agente para validar a aprovação.';
+setMode('real');setInterval(()=>{if(!document.hidden&&key)status()},3500);
 })();
 </script></body></html>
