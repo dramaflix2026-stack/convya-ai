@@ -14,9 +14,10 @@ O repositório está conectado ao serviço Railway `convya-ai`, ambiente `produc
 
 Abra a interface e faça:
 
-1. Em **Railway > convya-ai > Variables**, defina `CONVYA_WA_ADMIN_KEY` como senha aleatória de no mínimo 16 caracteres.
+1. Em **Railway > convya-ai > Variables**, mantenha `CONVYA_WA_ADMIN_KEY` com um valor privado de pelo menos 16 caracteres. Esta chave não será mais digitada dentro do painel.
 2. Defina `CONVYA_TEST_PHONE` como **o telefone do contato que concordou em testar**, com DDI e DDD, apenas números. Deve ser **diferente** do aparelho que você vinculará via QR.
-3. Na tela da Convya, digite a senha e selecione **Gerar QR Code**.
+3. **Uma única vez**, no navegador que será autorizado, abra `https://convya-ai-production.up.railway.app/whatsapp.html#access=SUA_CHAVE_PRIVADA`, substituindo `SUA_CHAVE_PRIVADA` pelo valor da variável da Railway (codifique caracteres especiais de URL). O navegador envia a chave ao servidor e a remove imediatamente da barra de endereço; o servidor cria um cookie HttpOnly, Secure, SameSite=Strict, válido por 30 dias. Não compartilhe esse link completo. Nas visitas seguintes, use a URL normal, sem o fragmento de acesso.
+4. Na tela da Convya, clique em **Gerar QR Code** — sem preencher senha ou login.
 4. No WhatsApp do aparelho que será vinculado: **Configurações / Menu → Dispositivos conectados → Conectar dispositivo**, escaneie o QR na tela da Convya.
 5. Envie uma mensagem de teste **manual** para o número autorizado ou peça que esse contato envie uma. A conversa aparece na caixa à direita.
 6. Para ativar respostas com IA depois de aprovar um site na PageNova, complete as variáveis adicionais abaixo.
@@ -36,7 +37,7 @@ A IA não inicia conversas sozinha; só responde ao número autorizado quando re
 - `CONVYA_WA_AUTH_DIR` (opcional): caminho para um **volume privado persistente da Railway**. Ex.: `/data/convya-wa-auth` (o volume deve estar montado em `/data`).
 - Sem volume, credenciais de sessão ficam em diretório temporário e o QR pode precisar ser escaneado novamente após reinícios e deploys. Nunca inclua o diretório de autenticação no GitHub.
 - **Uma instância** do serviço por sessão. A caixa de mensagens e o estado do Vendedor IA ficam na memória: mensagens e agente ativo são perdidos em reinícios.
-- A senha de administrador protege status, QR, envio, caixa de mensagens, ativação e pausa. Não compartilhe essa senha nem o QR publicamente.
+- A autorização do navegador protege status, QR, envio, caixa de mensagens, ativação e pausa. A chave privada continua somente no servidor Railway e é utilizada uma vez por dispositivo autorizado; nunca compartilhe o link de ativação nem o QR publicamente.
 - O código filtra mensagens de outros números e limita envios manuais; nenhum envio em massa ou follow-up foi habilitado.
 - O fluxo ainda não foi homologado com QR real de um celular; testes automatizados simulam conexão e resposta.
 
