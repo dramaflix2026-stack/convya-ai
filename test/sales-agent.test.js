@@ -39,7 +39,7 @@ test('signed approved site is mandatory, time limited and restricted to PageNova
  assert.equal(agent.validateApproval(sign()).projectId,'site-test-123456');
  assert.throws(()=>agent.validateApproval(sign(now()-1)),/expirou/i);
  assert.throws(()=>agent.validateApproval(sign(now()+400,'https://attacker.example/p/site-test')),/PageNova|inválido/i);
- const forged=sign().replace(/.$/,'Q');assert.throws(()=>agent.validateApproval(forged),/assinatura|inválida/i);
+ const token=sign();const forged=(token[0]==='A'?'B':'A')+token.slice(1);assert.throws(()=>agent.validateApproval(forged),/assinatura|inválida/i);
 });
 test('agent cannot activate unless an authorized QR session is linked',()=>{
  wa._testDisconnect();
