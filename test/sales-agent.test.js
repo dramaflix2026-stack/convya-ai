@@ -3,131 +3,112 @@ const {test,after}=require('node:test');
 const assert=require('node:assert/strict');
 const {createHmac}=require('node:crypto');
 const {once}=require('node:events');
-const http=require('node:http');
 const agent=require('../api/sales-agent');
+const wa=require('../api/whatsapp-web');
 const server=require('../server');
-
-const vars=['CONVYA_TEST_PHONE','CONVYA_WA_ADMIN_KEY','PAGENOVA_CONVYA_HANDOFF_SECRET','META_WA_ACCESS_TOKEN','META_WA_PHONE_NUMBER_ID','META_WA_APP_SECRET','META_WA_VERIFY_TOKEN','OPENAI_API_KEY'];
-const old=Object.fromEntries(vars.map(k=>[k,process.env[k]]));
-const SECRET='some-private-bridge-secret-for-test-01234567890';
-const ADM='only-an-admin-can-activate-this-01';
+const keys=['CONVYA_TEST_PHONE','CONVYA_WA_ADMIN_KEY','PAGENOVA_CONVYA_HANDOFF_SECRET','OPENAI_API_KEY'];
+const previous=Object.fromEntries(keys.map(k=>[k,process.env[k]]));
+const SECRET='private-bridge-secret-for-QA-0123456789';
+const ADMIN='admin-for-test-only-very-long-0123456';
 const PHONE='5511987654321';
-const timestamp=()=>Math.floor(Date.now()/1000);
-let base;
-function approvedToken(expires=timestamp()+500){
-  const payload={v:1,kind:'approved-test-site',projectId:'site-test-123456',
-    businessName:'Barbearia Exemplo',siteUrl:'https://www.pagenovaai.com.br/p/v2-barbearia-demo',
-    iat:timestamp(),exp:expires};
-  const encoded=Buffer.from(JSON.stringify(payload)).toString('base64url');
-  return encoded+'.'+createHmac('sha256',SECRET).update(encoded).digest('base64url');
+let origin,realFetch,realSent=[];
+const now=()=>Math.floor(Date.now()/1000);
+function sign(expires=now()+500,url='https://www.pagenovaai.com.br/p/v2-barbearia-demo'){
+ const payload={v:1,kind:'approved-test-site',projectId:'site-test-123456',businessName:'Barbearia Exemplo',siteUrl:url,iat:now(),exp:expires};
+ const body=Buffer.from(JSON.stringify(payload)).toString('base64url');
+ return body+'.'+createHmac('sha256',SECRET).update(body).digest('base64url');
 }
-test('bootstrap isolated test server',async()=>{
- server.listen(0,'127.0.0.1');await once(server,'listening');
- base='http://127.0.0.1:'+server.address().port;
-});
-test('without setup admin cannot see agent session',async()=>{
- for(const k of vars)delete process.env[k];
- const r=await fetch(base+'/api/agent/status');
- assert.equal(r.status,503);
-});
-test('approval is signed and expires, never trusts arbitrary URLs',()=>{
+function setUp(){
+ process.env.CONVYA_WA_ADMIN_KEY=ADMIN;process.env.CONVYA_TEST_PHONE=PHONE;
  process.env.PAGENOVA_CONVYA_HANDOFF_SECRET=SECRET;
- const ok=agent.validateApproval(approvedToken());
- assert.equal(ok.businessName,'Barbearia Exemplo');
- assert.equal(ok.projectId,'site-test-123456');
- assert.throws(()=>agent.validateApproval(approvedToken().replace(/.$/,'x')),/assinatura|inválida/i);
- assert.throws(()=>agent.validateApproval(approvedToken(timestamp()-1)),/expirou/i);
+ process.env.OPENAI_API_KEY='test-only-key-openai-not-valid';
+ wa._testConnect(async args=>{realSent.push(args);return {key:{id:'wa.test.'+realSent.length}}});
+}
+const headers={Authorization:'Bearer '+ADMIN,'Content-Type':'application/json'};
+test('start isolated Node server',async()=>{
+ server.listen(0,'127.0.0.1');await once(server,'listening');origin='http://127.0.0.1:'+server.address().port;realFetch=global.fetch;
 });
-test('agent activation requires allowlist, Meta and OpenAI',()=>{
- process.env.CONVYA_WA_ADMIN_KEY=ADM;process.env.CONVYA_TEST_PHONE=PHONE;
- assert.throws(()=>agent.activate(approvedToken()),/Configure/);
- process.env.META_WA_ACCESS_TOKEN='fake-meta-token-not-real';process.env.META_WA_PHONE_NUMBER_ID='123456';
- process.env.META_WA_APP_SECRET='fake-app-secret';process.env.META_WA_VERIFY_TOKEN='verify';
- process.env.OPENAI_API_KEY='fake-openai-token-not-real';
- const current=agent.activate(approvedToken());
- assert.equal(current.session.status,'active');
- assert.equal(current.session.phoneSuffix,PHONE.slice(-4));
- assert.equal(current.session.siteUrl,'https://www.pagenovaai.com.br/p/v2-barbearia-demo');
+test('unauthorized agent endpoints refuse access',async()=>{
+ for(const k of keys)delete process.env[k];
+ const no=await fetch(origin+'/api/agent/status');assert.equal(no.status,503);
+ process.env.CONVYA_WA_ADMIN_KEY=ADMIN;
+ const bad=await fetch(origin+'/api/agent/status');assert.equal(bad.status,401);
 });
-test('authenticated status, human takeover and resume via HTTP',async()=>{
- const headers={'Authorization':'Bearer '+ADM,'Content-Type':'application/json'};
- const anon=await fetch(base+'/api/agent/status');assert.equal(anon.status,401);
- const ok=await fetch(base+'/api/agent/status',{headers});assert.equal(ok.status,200);
- const status=await ok.json();assert.equal(status.session.status,'active');
- assert.ok(!JSON.stringify(status).includes(SECRET));
- const human=await fetch(base+'/api/agent/mode',{method:'POST',headers,body:JSON.stringify({mode:'human'})});
+test('signed approved site is mandatory, time limited and restricted to PageNova',()=>{
+ setUp();
+ assert.equal(agent.validateApproval(sign()).projectId,'site-test-123456');
+ assert.throws(()=>agent.validateApproval(sign(now()-1)),/expirou/i);
+ assert.throws(()=>agent.validateApproval(sign(now()+400,'https://attacker.example/p/site-test')),/PageNova|inválido/i);
+ const forged=sign().replace(/.$/,'Q');assert.throws(()=>agent.validateApproval(forged),/assinatura|inválida/i);
+});
+test('agent cannot activate unless an authorized QR session is linked',()=>{
+ wa._testDisconnect();
+ assert.throws(()=>agent.activate(sign()),/Configure/);
+ wa._testConnect(async msg=>{realSent.push(msg);return {key:{id:'wa.test.'+realSent.length}}});
+ assert.equal(agent.activate(sign()).session.status,'active');
+ assert.equal(agent.publicState().session.phoneSuffix,PHONE.slice(-4));
+});
+test('admin can pause, take over and resume from HTTP',async()=>{
+ const s=await fetch(origin+'/api/agent/status',{headers});
+ assert.equal(s.status,200);assert.equal((await s.json()).session.status,'active');
+ const human=await fetch(origin+'/api/agent/mode',{method:'POST',headers,body:JSON.stringify({mode:'human'})});
  assert.equal(human.status,200);assert.equal((await human.json()).session.status,'human');
- const resumed=await fetch(base+'/api/agent/mode',{method:'POST',headers,body:JSON.stringify({mode:'active'})});
- assert.equal(resumed.status,200);assert.equal((await resumed.json()).session.status,'active');
+ const restart=await fetch(origin+'/api/agent/mode',{method:'POST',headers,body:JSON.stringify({mode:'active'})});
+ assert.equal(restart.status,200);assert.equal((await restart.json()).session.status,'active');
 });
-test('one approved personal phone gets AI response; another phone is ignored',async()=>{
- let sent=[],audits=[];
- const deps={sendMessage:async msg=>{sent.push(msg);return {ok:true,messageId:'wamid.TEST.01'}},
-   event:x=>audits.push(x),generate:async ctx=>('Sou a assistente de IA da PageNova. Veja o site: '+ctx.siteUrl)};
- const rejected=await agent.onInbound({from:'5521999999999',text:'Oi',type:'text'},deps);
- assert.equal(rejected.ignored,true);assert.equal(sent.length,0);
- const answer=await agent.onInbound({from:PHONE,text:'Olá, gostaria de ver a prévia',type:'text'},deps);
- assert.equal(answer.handled,true);assert.equal(sent.length,1);
- assert.equal(sent[0].to,PHONE);assert.match(sent[0].text,/p\/v2-barbearia-demo/);
- assert.equal(agent.publicState().session.aiReplies,1);
- assert.equal(audits.length,1);
+test('unrelated phone never triggers agent or sends messages',async()=>{
+ const count=realSent.length;
+ await wa.receiveChatMessage({key:{id:'not-allowed-001',remoteJid:'5521999999999@s.whatsapp.net'},message:{conversation:'Quero conhecer a PageNova'}});
+ assert.equal(realSent.length,count);
+ assert.equal(agent.publicState().session.aiReplies,0);
 });
-test('signed WhatsApp webhook -> mocked OpenAI response -> mocked Meta send (no live API)',async()=>{
- agent.activate(approvedToken()); // start fresh to exercise first-message AI disclosure
- const actualFetch=global.fetch;
- const calls=[];
- const promptBody={object:'whatsapp_business_account',entry:[{changes:[{field:'messages',value:{
-   metadata:{phone_number_id:'123456'},messages:[{id:'wamid.E2E.001',from:PHONE,type:'text',text:{body:'Pode apresentar a prévia do meu site?'}}]
- }}]}]};
- const raw=JSON.stringify(promptBody);
- const signed='sha256='+createHmac('sha256',process.env.META_WA_APP_SECRET).update(raw).digest('hex');
+test('QR webhook equivalent: linked WhatsApp text -> AI Responses mock -> WhatsApp reply',async()=>{
+ agent.activate(sign()); // clean session
+ let aiCalls=0;
+ global.fetch=async(input,options)=>{
+  const path=String(input);
+  if(path.startsWith(origin))return realFetch(input,options);
+  if(path==='https://api.openai.com/v1/responses'){
+   aiCalls++;
+   const req=JSON.parse(options.body);
+   assert.equal(req.store,false);
+   assert.match(req.instructions,/Barbearia Exemplo/);
+   return new Response(JSON.stringify({output:[{type:'message',content:[{type:'output_text',text:'Conheça o site de demonstração: https://www.pagenovaai.com.br/p/v2-barbearia-demo'}]}]}),{status:200,headers:{'Content-Type':'application/json'}});
+  }
+  throw Error('Unexpected outgoing request '+path);
+ };
  try{
-   global.fetch=async(url,opts)=>{
-     const target=String(url);
-     if(target.startsWith(base))return actualFetch(url,opts);
-     calls.push({target,options:opts});
-     if(target==='https://api.openai.com/v1/responses'){
-       const body=JSON.parse(opts.body);
-       assert.match(body.instructions,/Barbearia Exemplo/);
-       assert.equal(body.store,false);
-       return new Response(JSON.stringify({output:[{type:'message',content:[{type:'output_text',text:'Aqui está a prévia aprovada: https://www.pagenovaai.com.br/p/v2-barbearia-demo'}]}]}),{status:200,headers:{'content-type':'application/json'}});
-     }
-     if(target.includes('graph.facebook.com/')){
-       const body=JSON.parse(opts.body);
-       assert.equal(body.to,PHONE);
-       assert.equal(body.type,'text');
-       assert.match(body.text.body,/assistente de IA/i);
-       return new Response(JSON.stringify({messages:[{id:'wamid.E2E.OUT.001'}]}),{status:200,headers:{'content-type':'application/json'}});
-     }
-     throw Error('Unexpected external endpoint: '+target);
-   };
-   const response=await global.fetch(base+'/api/whatsapp/webhook',{method:'POST',headers:{'Content-Type':'application/json','X-Hub-Signature-256':signed},body:raw});
-   assert.equal(response.status,200);assert.equal((await response.json()).received,1);
-   for(let i=0;i<60&&agent.publicState().session.aiReplies<1;i++)await new Promise(r=>setTimeout(r,10));
-   assert.equal(agent.publicState().session.aiReplies,1);
-   assert.ok(calls.some(x=>x.target==='https://api.openai.com/v1/responses'));
-   assert.ok(calls.some(x=>x.target.includes('graph.facebook.com/')));
- }finally{global.fetch=actualFetch}
+  const count=realSent.length;
+  await wa.receiveChatMessage({key:{id:'inbound-wa-001',remoteJid:PHONE+'@s.whatsapp.net'},message:{conversation:'Olá, me mostra o site?' }});
+  assert.equal(aiCalls,1);
+  assert.equal(realSent.length,count+1);
+  assert.equal(realSent.at(-1).to,PHONE);
+  assert.match(realSent.at(-1).text,/assistente de IA/i);
+  assert.match(realSent.at(-1).text,/v2-barbearia-demo/);
+  assert.equal(agent.publicState().session.aiReplies,1);
+  const inbox=await realFetch(origin+'/api/wa-web/messages',{headers});
+  const content=await inbox.json();
+  assert.ok(content.messages.some(x=>x.id==='inbound-wa-001'));
+  assert.ok(content.messages.some(x=>x.direction==='out'&&x.text.includes('v2-barbearia-demo')));
+ }finally{global.fetch=realFetch}
 });
-
-test('business negotiation and human request end agent autonomy',async()=>{
- let sent=[];
- const deps={sendMessage:async msg=>{sent.push(msg);return {ok:true,messageId:'wamid.HUMAN.02'}},event:()=>{},generate:async()=>{throw Error('AI must not run')}};
- const result=await agent.onInbound({from:PHONE,text:'Quero falar com humano para fechar a venda',type:'text'},deps);
- assert.equal(result.handoff,true);assert.equal(agent.publicState().session.status,'human');
- assert.equal(sent.length,1);
- const after=await agent.onInbound({from:PHONE,text:'Me diz o preço',type:'text'},deps);
- assert.equal(after.ignored,true);assert.equal(sent.length,1);
+test('human/price request suspends AI and hands conversation to operator',async()=>{
+ const count=realSent.length;
+ await wa.receiveChatMessage({key:{id:'inbound-wa-002',remoteJid:PHONE+'@s.whatsapp.net'},message:{conversation:'Quanto custa? Quero falar com humano'}});
+ assert.equal(agent.publicState().session.status,'human');
+ assert.equal(realSent.length,count+1);
+ await wa.receiveChatMessage({key:{id:'inbound-wa-003',remoteJid:PHONE+'@s.whatsapp.net'},message:{conversation:'Pode enviar agora?' }});
+ assert.equal(realSent.length,count+1);
 });
-test('pausing or opt-out suppresses all automatic sends',async()=>{
+test('opt-out pauses automation with zero additional messages',async()=>{
  agent.setMode('active');
- let sends=0;const deps={sendMessage:async()=>{sends++;return{ok:true}},event:()=>{},generate:async()=>'hi'};
- const result=await agent.onInbound({from:PHONE,text:'Não quero, parar',type:'text'},deps);
- assert.equal(result.paused,true);assert.equal(sends,0);
+ const count=realSent.length;
+ await wa.receiveChatMessage({key:{id:'inbound-wa-004',remoteJid:PHONE+'@s.whatsapp.net'},message:{conversation:'Não quero, parar'}});
  assert.equal(agent.publicState().session.status,'paused');
+ assert.equal(realSent.length,count);
 });
 after(async()=>{
- agent._reset();
- for(const [k,v] of Object.entries(old)){if(v===undefined)delete process.env[k];else process.env[k]=v}
+ global.fetch=realFetch||global.fetch;agent._reset();wa._testDisconnect();
+ for(const [k,v] of Object.entries(previous)){if(v===undefined)delete process.env[k];else process.env[k]=v}
  await new Promise(resolve=>server.close(resolve));
 });
