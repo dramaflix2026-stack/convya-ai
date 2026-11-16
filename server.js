@@ -97,6 +97,13 @@ const server=http.createServer(async(req,res)=>{
 });
 if(require.main===module){
  const port=Number(process.env.PORT)||3000;
- server.listen(port,'0.0.0.0',()=>console.log('Convya AI — Railway — porta',port));
+ server.listen(port,'0.0.0.0',()=>{
+   console.log('Convya AI — Railway — porta',port);
+   // Reuse the paired WhatsApp identity after restarts/deploys.
+   // Without saved credentials this does nothing (no unsolicited QR generation).
+   void waWeb.resumeSession().then(result=>{
+     console.log('[convya-whatsapp] session restore:',result.reason||'already connected');
+   }).catch(()=>console.warn('[convya-whatsapp] session restore unavailable'));
+ });
 }
 module.exports=server;
