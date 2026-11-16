@@ -8,6 +8,9 @@ const ADMIN='test-only-strong-admin-secret-987654321';
 const PHONE='5511999887766';
 let url;
 const OLD=Object.fromEntries(['CONVYA_WA_ADMIN_KEY','CONVYA_TEST_PHONE'].map(k=>[k,process.env[k]]));
+// Each test starts without the Railway production allowlist; explicitly enable it
+// only in the relevant scenario. Restore the original value in after().
+delete process.env.CONVYA_TEST_PHONE;
 const auth={Authorization:'Bearer '+ADMIN,'Content-Type':'application/json'};
 test('start server and render premium white/green QR page',async()=>{
  server.listen(0,'127.0.0.1');await once(server,'listening');
