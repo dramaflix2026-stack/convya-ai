@@ -25,6 +25,7 @@ test('start server: premium builder and shared JS load over HTTP',async()=>{
  assert.match(html,/id="testChat"/);
  assert.match(html,/data-key/);
  assert.match(html,/text\/x-convya-block/);
+ assert.match(html,/FLOW\.advance\(current\(\),testSession,value\)/);
  const src=[...html.matchAll(/<script>([\s\S]*?)<\/script>/gi)];
  assert.equal(src.length,1);
  assert.doesNotThrow(()=>new Script(src[0][1],{filename:'fluxos-inline.js'}));
@@ -46,6 +47,42 @@ test('default sample sends scripted text after incoming customer message and sim
  assert.equal(run.events[1].direction,'out');
  assert.match(run.events[1].text,/Olá/);
  assert.match(run.steps[2].result,/2 minutos.*acelerado/);
+});
+test('multi-turn conversation pauses at each input block and resumes on next message',()=>{
+ const f=flow.create(),startText=f.nodes.find(n=>n.type==='text'),end=f.nodes.find(n=>n.type==='end');
+ const secondInput=flow.node('input',380,845);
+ const secondReply=flow.node('text',380,1050);
+ secondReply.config.text='Obrigado pela segunda resposta!';
+ f.nodes.push(secondInput,secondReply);
+ flow.connect(f,startText.id,'out',secondInput.id);
+ flow.connect(f,secondInput.id,'out',secondReply.id);
+ flow.connect(f,secondReply.id,'out',end.id);
+ assert.deepEqual(flow.validate(f),[]);
+ const first=flow.advance(f,null,'Oi, quero fazer um pedido');
+ assert.equal(first.ok,true);
+ assert.equal(first.waiting,true);
+ assert.equal(first.ended,false);
+ assert.equal(first.events.filter(e=>e.direction==='in').length,1);
+ assert.equal(first.events.filter(e=>e.direction==='out').length,1);
+ const second=flow.advance(f,first.session,'Quero dois hambúrgueres');
+ assert.equal(second.waiting,false);
+ assert.equal(second.ended,true);
+ assert.equal(second.events.filter(e=>e.direction==='in').length,2);
+ assert.ok(second.events.some(e=>e.text==='Obrigado pela segunda resposta!'));
+ assert.ok(second.steps.some(e=>e.result.includes('Quero dois hambúrgueres')));
+ const third=flow.advance(f,second.session,'Outra mensagem');
+ assert.equal(third.events.length,second.events.length);
+});
+test('multi-turn session respects matching text on later customer input',()=>{
+ const f=flow.create(),startText=f.nodes.find(n=>n.type==='text'),end=f.nodes.find(n=>n.type==='end');
+ const secondInput=flow.node('input',410,850);secondInput.config.match='sim';
+ f.nodes.push(secondInput);flow.connect(f,startText.id,'out',secondInput.id);
+ flow.connect(f,secondInput.id,'out',end.id);
+ const first=flow.advance(f,null,'Oi');
+ const nope=flow.advance(f,first.session,'talvez');
+ assert.equal(nope.waiting,true);
+ const okay=flow.advance(f,nope.session,'Sim, pode continuar');
+ assert.equal(okay.ended,true);
 });
 test('input block waits without a message or if the required text is absent',()=>{
  const f=flow.create();
