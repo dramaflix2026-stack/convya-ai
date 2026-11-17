@@ -9,7 +9,7 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "build": "npm test && node --check server.js && node --check api/whatsapp-web.js && node --check api/sales-agent.js"
+    "build": "npm test && node --check server.js && node --check api/whatsapp-web.js && node --check api/sales-agent.js && node --check api/virtual-client.js"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "6.7.24",
