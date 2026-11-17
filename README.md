@@ -14,6 +14,16 @@ Nesta versão **não existe senha, cadastro, autenticação do navegador ou link
 
 A integração por Baileys usa protocolo **não oficial** do WhatsApp Web, sujeito a restrições e desconexões. Não habilite disparos em massa ou contatos sem consentimento. O histórico de mensagens e a sessão ativa do agente são mantidos apenas na memória; podem desaparecer ao reiniciar. A sessão de login do WhatsApp só persiste se houver volume privado configurado por `CONVYA_WA_AUTH_DIR`.
 
+
+## Cliente Virtual — sem segundo número de WhatsApp
+
+Na aba **Cliente Virtual** do painel, escreva como um cliente (ex.: "Oi" ou "Quanto custa um site?"). A Convya mostra sua mensagem e a resposta do Vendedor Virtual dentro da tela. Há exemplos rápidos, opção de reiniciar e histórico local neste navegador que resiste ao F5.
+
+- **Simulação guiada (padrão):** respostas de roteiro adequadas para testes de atendimento, sem API paga. A interface informa explicitamente que as respostas não são de IA.
+- **IA real (opcional):** configurar `OPENAI_API_KEY` e `CONVYA_VIRTUAL_AI_ENABLED=true`. O servidor chama o modelo apenas quando habilitado, com limites conservadores de requisições e tamanho; se a API falhar, retorna ao roteiro.
+- **Isolamento:** a simulação jamais envia, recebe ou representa mensagens reais de WhatsApp; não cria número fictício na rede WhatsApp. Nenhum segredo da API é enviado ao navegador. A integração existente de QR e número autorizado permanece separada.
+- **Atenção:** o painel continua público e sem login, a pedido do proprietário. Portanto, não habilite IA paga sem primeiro proteger esse endpoint contra acessos não autorizados ou estar ciente dos custos do limite de demonstração.
+
 ## APIs
 - `GET /api/wa-web/status`: estado, incluindo QR.
 - `POST /api/wa-web/connect`: gerar QR.
