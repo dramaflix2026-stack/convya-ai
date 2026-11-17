@@ -28,8 +28,54 @@ const normalizeHistory=items=>{
 // Paid AI remains off unless explicitly enabled by the operator in Railway.
 const aiEnabled=()=>process.env.CONVYA_VIRTUAL_AI_ENABLED==='true'&&
   typeof process.env.OPENAI_API_KEY==='string'&&process.env.OPENAI_API_KEY.length>=15;
+
+function lastSellerText(history){
+  return [...history].reverse().find(m=>m.role==='seller')?.text||'';
+}
+const affirmative=text=>/^(sim|s|pode|claro|com certeza|pode sim|ok|beleza|vamos|quero|isso|pode mostrar)[.! ]*$/.test(normalize(text).trim());
+const wantsPreview=text=>{
+  const q=normalize(text).trim();
+  return /\b(previa|demonstracao|demo|exemplo de site)\b/.test(q)||
+    /\b(ver|mostrar|mostra|abrir|acessar|conhecer)\b.{0,65}\b(site|modelo|pagina)\b/.test(q)||
+    /\b(site|modelo|pagina)\b.{0,30}\b(pronto|visual|exemplo)\b/.test(q);
+};
+function previewInvitation(scenario){
+  return 'Claro! Uma prévia real precisa ser criada e aprovada na PageNova. Ainda não há link dessa empresa vinculado a esta simulação, então não vou inventar um site. Posso mostrar agora como ficaria a estrutura sugerida para sua '+scenario.label.toLowerCase()+'?';
+}
+function previewOutline(scenario){
+  if(scenario===SCENARIOS.hamburgueria)return 'A proposta visual seria: 1) destaque com foto dos lanches; 2) seis hambúrgueres com imagens, nomes e descrições; 3) botão de pedido via WhatsApp; 4) horários e informações de entrega. É um esboço, não um site publicado. Para enviar uma prévia real, será necessário gerar e aprovar o site na PageNova.';
+  return 'A estrutura proposta: 1) apresentação da sua '+scenario.label.toLowerCase()+'; 2) '+scenario.offer+'; 3) diferenciais e informações de contato. Isso é um esboço textual. Uma prévia navegável exigirá gerar e aprovar o site na PageNova.';
+}
+function concretePitch(scenario){
+  return 'Perfeito! A ideia é uma página profissional com '+scenario.offer+'. Ela complementa as redes sociais e centraliza informações para quem quer conhecer o negócio. O próximo passo real é preparar uma prévia na PageNova com dados e imagens aprovados, antes de apresentar uma proposta.';
+}
+function previewFollowup(text,history,scenario){
+  const prior=lastSellerText(history);
+  if(affirmative(text)&&prior.includes('não há link dessa empresa vinculado a esta simulação'))
+    return previewOutline(scenario);
+  return null;
+}
+// No virtual simulation may claim it has handed a lead to a human or scheduled a callback.
+const unsupportedFollowup=/\b(j[aá] (?:encaminhei|registrei|agendei|avisei)|(?:vou|iremos) (?:encaminhar|agendar|pedir para .*entrar em contato)|(?:a equipe|algu[eé]m|nossa equipe) (?:vai|ir[aá]) entrar em contato|entrar[aã]o em contato)\b/i;
+function enforceNoFakeHandoff(result){
+  if(unsupportedFollowup.test(result.reply||''))return {
+    reply:'Nesta simulação ainda não registrei seu interesse no CRM nem acionei a equipe. Para alguém entrar em contato de verdade, seria preciso registrar o lead e integrar esse encaminhamento. Enquanto isso posso explicar a proposta por aqui.',
+    engine:'scripted',notice:'Resposta substituída para evitar uma promessa de contato não executado.'
+  };
+  return result;
+}
+
 function scriptedReply(message,history,scenario=SCENARIOS.hamburgueria){
  const q=normalize(message).trim();
+ if(q==='n'||q==='nao')return 'Entendido, obrigado pelo seu tempo! Encerramos a simulação sem enviar mensagens ou agendar contato.';
+ const followup=previewFollowup(message,history,scenario);
+ if(followup)return followup;
+ if(wantsPreview(message))return previewInvitation(scenario);
+ if(affirmative(message)){
+   const approvals=history.filter(m=>m.role==='customer'&&affirmative(m.text)).length;
+   return approvals>0?concretePitch(scenario):
+     'Ótimo! Para sua '+scenario.label.toLowerCase()+', podemos criar '+scenario.offer+'. O site complementa suas redes sociais e facilita o acesso às informações. O próximo passo é preparar uma prévia com informações reais da empresa na PageNova.';
+ }
  if(/\b(parar|pare|cancelar|stop|nao quero|nao tenho interesse|sem interesse)\b/.test(q))
   return 'Tudo bem! Este é apenas um teste. Não enviarei mais nada até você iniciar outra mensagem.';
  if(/\b(humano|atendente|pessoa|falar com alguem)\b/.test(q))
@@ -42,8 +88,6 @@ function scriptedReply(message,history,scenario=SCENARIOS.hamburgueria){
   return 'A ideia é apresentar sua '+scenario.label.toLowerCase()+' de forma profissional: '+scenario.offer+'. Se fizer sentido, podemos estudar uma proposta sem compromisso.';
  if(/\b(instagram|facebook|redes sociais|ja tenho)\b/.test(q))
   return 'O Instagram ajuda a divulgar sua marca. O site pode complementar, reunindo '+scenario.offer+'. Você gostaria de conhecer essa possibilidade?';
- if(/\b(exemplo|previa|demo|demonstracao|portfolio|mostrar)\b/.test(q))
-  return 'Posso explicar a estrutura sugerida para seu negócio. Para enviar uma prévia real, precisamos primeiro de um site aprovado; não vou inventar um link.';
  if(/\b(ia|inteligencia artificial|automacao|chatbot|whatsapp|bot)\b/.test(q))
   return 'O site pode ter um botão direto para WhatsApp e apresentar seus serviços. A automação de atendimento é um recurso separado, que podemos discutir com a equipe.';
  if(/\b(oi|ola|bom dia|boa tarde|boa noite|e ai)\b/.test(q))
@@ -51,7 +95,7 @@ function scriptedReply(message,history,scenario=SCENARIOS.hamburgueria){
  if(/\b(obrigad|valeu|tchau|ate logo)\b/.test(q))
   return 'Eu que agradeço! Sempre que quiser, pode continuar este teste por aqui. 😊';
  if(history.length>6)
-  return 'Entendi. A proposta é ajudar sua empresa com '+scenario.offer+'. Quer que eu encaminhe uma conversa com nossa equipe para avaliar o seu caso?';
+  return 'Entendi. A proposta é ajudar seu negócio com '+scenario.offer+'. Se houver interesse, o próximo passo é montar uma prévia real na PageNova com os dados corretos da empresa.';
  return 'Entendi! A PageNova pode apresentar uma ideia de '+scenario.offer+'. Você gostaria de saber como isso funcionaria no seu negócio?';
 }
 // Public passwordless demo; basic per-client throttling with no personal identifier exposed.
@@ -105,11 +149,16 @@ async function aiReply(text,history,scenario){
      'Você representa o DESENVOLVEDOR/VENDEDOR que está oferecendo um site ao proprietário de um negócio; o usuário representa o possível CLIENTE, não o desenvolvedor.',
      'Você já iniciou a abordagem comercial. Continue vendendo uma proposta de site, em vez de perguntar ao cliente o que ele quer desenvolver.',
      'Perfil do potencial cliente: '+scenario.label+'. Proposta a apresentar: '+scenario.offer+'.',
-     'Venda consultiva: explique o benefício para o negócio, peça permissão para continuar, responda objeções e encaminhe para humano quando necessário.',
+     'Venda consultiva: explique benefícios concretos, responda objeções e avance de etapa quando o cliente demonstrar interesse.',
+     'No máximo uma pergunta inicial pedindo permissão para explicar a oferta. Se o cliente responder sim ou pode, APRESENTE as informações e avance; NÃO repita Posso continuar, Posso explicar ou Posso ajudar a cada mensagem.',
+     'Se o cliente pedir para ver o site, não existe URL aprovada vinculada a esta simulação: explique que a prévia depende de geração e aprovação na PageNova e apresente uma estrutura concreta. Nunca sugira que a própria simulação já criou ou publicou um site.',
+     'A simulação NÃO tem integração de leads ao CRM, agendamento, envio de contato a vendedor ou encaminhamento humano real. Nunca diga que encaminhou, registrou dados, agendou ou que a equipe vai entrar em contato. Explique que isso exige uma etapa adicional.',
+     'Se o cliente responder sim após pedir uma prévia, descreva hero, produtos ou serviços, botões de contato e informações úteis para o segmento, em vez de pedir mais permissão.',
+     'Se responder somente n ou não ao convite final, encerre com educação e não faça outra pergunta.',
      'Responda em português brasileiro com simpatia, naturalidade e objetividade, máximo de 300 caracteres por resposta.',
      'Isto é uma simulação: nunca diga que já entrou em contato com esse negócio pelo WhatsApp.',
      'Dê informações gerais sobre sites e atendimento, mas não invente preços, descontos, prazos ou funcionalidades não confirmadas.',
-     'Quando alguém pedir preço, contrato, pagamento ou atendimento humano, encaminhe para avaliação da equipe; não cobre pagamentos.',
+     'Quando alguém pedir preço, contrato, pagamento ou atendimento humano, diga que é necessária uma etapa de atendimento humano que AINDA NÃO foi acionada nesta simulação; não cobre pagamentos.' ,
      'Não peça números de telefone nem dados sensíveis. Não crie links ou promessas de faturamento.',
      'Nunca afirme que um site ou prévia já foi criado se isso não consta nas informações; não invente link de exemplo nem diga ter estudado o negócio.',
      'Se o cliente disser que não tem interesse, agradeça e encerre sem insistir. Não faça contato posterior.',
@@ -124,7 +173,7 @@ async function aiReply(text,history,scenario){
    .flatMap(x=>(x.content||[]).filter(y=>y.type==='output_text').map(y=>String(y.text||'')))
    .join(' ').trim().slice(0,400);
   if(!reply)throw Error('empty response');
-  return {reply,engine:'ai',notice:'IA ativa somente nesta simulação; nenhum WhatsApp foi contatado.'};
+  return enforceNoFakeHandoff({reply,engine:'ai',notice:'IA ativa somente nesta simulação; nenhum WhatsApp foi contatado.'});
  }catch{
   return {reply:scriptedReply(text,history,scenario),engine:'scripted',notice:'IA indisponível; respondeu o roteiro de demonstração.'};
  }finally{clearTimeout(timeout)}
@@ -160,15 +209,20 @@ async function handler(req,res,url,raw=Buffer.alloc(0)){
  const history=normalizeHistory(body.history);
  const scenario=scenarioFor(body.scenario||'hamburgueria');
  const intent=classify(text);
+ const previewAnswer=previewFollowup(text,history,scenario);
+ const isNoReply=normalize(text).trim()==='n'||normalize(text).trim()==='nao';
+ const previewRequest=wantsPreview(text);
  let result;
- if(intent==='opt_out')result={reply:'Entendido! Esta simulação pausaria o atendimento automático. Nenhuma outra mensagem seria enviada sem nova interação.',engine:'scripted',notice:'Automação pausada no teste; nenhum WhatsApp acionado.'};
- else if(intent==='handoff')result={reply:'Entendi! Para falar sobre preços, contratos ou com uma pessoa da equipe, a conversa seria transferida para atendimento humano. Esta é apenas uma simulação.',engine:'scripted',notice:'Transferência humana simulada. Nenhum atendimento real foi acionado.'};
+ if(intent==='opt_out'||isNoReply)result={reply:'Obrigado pelo seu tempo! Encerramos esta simulação. Nenhum contato será realizado.',engine:'scripted',notice:'Automação pausada no teste; nenhum WhatsApp acionado.'};
+ else if(intent==='handoff')result={reply:'Entendi! Esta etapa exigiria atendimento humano, mas a simulação ainda não encaminha leads para a equipe. Não registrei nem agendei nenhum contato.',engine:'scripted',notice:'Encaminhamento humano apenas simulado. Nenhum CRM ou atendente foi acionado.'};
+ else if(previewRequest||previewAnswer)result={reply:previewAnswer||previewInvitation(scenario),engine:'scripted',notice:'Prévia explicada com transparência; nenhum site foi criado ou publicado.'};
  else result=aiEnabled()?await aiReply(text,history,scenario):{
   reply:scriptedReply(text,history,scenario),engine:'scripted',
   notice:'Roteiro de demonstração. Não é uma resposta de IA nem uma mensagem do WhatsApp.'
  };
  return send(res,200,{ok:true,virtual:true,whatsappSent:false,
-  intent,scenario:body.scenario||'hamburgueria',action:intent==='handoff'?'human':intent==='opt_out'?'paused':'continue',
+  intent:isNoReply?'opt_out':intent,scenario:body.scenario||'hamburgueria',
+  action:intent==='handoff'?'human':intent==='opt_out'||isNoReply?'paused':'continue',
   trace:traceFor(intent,result.engine,body.waitSeconds===60?60:0),...result});
 }
 module.exports={handler,scriptedReply,aiEnabled};
