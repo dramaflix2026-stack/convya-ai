@@ -37,7 +37,13 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
 .chatBox{padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:670px}
 .chatHeader{padding:23px 23px 15px;border-bottom:1px solid var(--line)}
 .tabBar{display:flex;gap:7px;margin-top:13px;flex-wrap:wrap}.tab{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 13px;color:#5f7065;font-weight:750}.tab.sel{color:var(--deep);border-color:#a9ddbb;background:var(--light)}
-.demoTools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}.demoTools .btn{min-height:32px;padding:6px 10px;font-size:11px}.demoExamples{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:11px;color:var(--sub);font-size:11px}.demoExample{border:1px solid #cfe5d5;border-radius:22px;background:#f6fbf7;padding:6px 10px;color:#276641;font-size:11px}.demoExample:hover{background:#e4f8e8}.demoTools[hidden],.demoExamples[hidden]{display:none!important}
+.demoTools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}.demoTools .btn{min-height:32px;padding:6px 10px;font-size:11px}.demoExamples{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:11px;color:var(--sub);font-size:11px}.demoExample{border:1px solid #cfe5d5;border-radius:22px;background:#f6fbf7;padding:6px 10px;color:#276641;font-size:11px}.demoExample:hover{background:#e4f8e8}.demoTools[hidden],.demoExamples[hidden],.flowTrace[hidden]{display:none!important}
+.flowTrace{margin-top:12px;padding:12px;background:#f6fbf7;border:1px solid var(--line);border-radius:12px}
+.flowTrace strong{font-size:12px;color:var(--deep)}
+.flowSteps{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.flowStep{background:#fff;border:1px solid #d4e6d7;border-radius:9px;padding:8px 10px;max-width:240px}
+.flowStep span{display:block;font-size:11px;font-weight:750;color:#246637}
+.flowStep small{display:block;margin-top:3px;font-size:10px;color:var(--sub);line-height:1.4}
 .chatWindow{height:390px;overflow-y:auto;padding:18px 22px;background:radial-gradient(ellipse at top left,#f0faf2 0%,#fff 46%);flex:1;min-height:340px}
 .empty{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:9px}.empty .qrEmoji{margin:0 0 3px}.empty strong{font-size:17px}.empty .muted{max-width:300px}
 .bubble{max-width:78%;width:max-content;padding:12px 14px;margin:0 0 10px;border-radius:14px 14px 14px 3px;background:#ecf1ed;border:1px solid #e2ebe4;overflow-wrap:anywhere;white-space:pre-wrap;line-height:1.55}
@@ -95,7 +101,16 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
         <div class="tabBar" role="tablist" aria-label="Tipo de conversa"><button class="tab sel" id="realTab" role="tab" aria-selected="true" type="button">WhatsApp Real</button><button class="tab" id="demoTab" role="tab" aria-selected="false" type="button">🤖 Cliente Virtual</button></div>
         <div class="demoTools" id="demoTools" hidden>
           <span class="chip" id="demoEngine">Simulação guiada · sem envio ao celular</span>
+          <label for="demoWait" style="margin:0">Espera:
+            <select class="field" id="demoWait" style="width:auto;padding:6px 10px">
+              <option value="0">Imediata</option><option value="60">1 minuto (simulado)</option>
+            </select>
+          </label>
           <button class="btn weak" id="resetDemo" type="button">Reiniciar conversa</button>
+        </div>
+        <div class="flowTrace" id="demoFlow" role="status" aria-live="polite" hidden>
+          <strong>Fluxo executado</strong><div class="flowSteps" id="demoFlowSteps"></div>
+          <p class="hint">Teste acelerado: o tempo de espera é simulado. O WhatsApp não é acionado.</p>
         </div>
       </div>
       <div class="chatWindow" id="messages" aria-live="polite">
@@ -148,6 +163,8 @@ function resetDemo(){
  virtualGeneration++;
  demos=initialDemo();
  saveDemo();
+ el('demoFlow').hidden=true;
+ el('demoFlowSteps').innerHTML='';
  if(mode==='demo'){render(demos);el('messageCounter').textContent=demos.length+' mensagem(ns) virtuais';error('sendError');}
 }
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -201,6 +218,13 @@ async function loadVirtualEngine(){
    ?'Vendedor IA · teste virtual · sem WhatsApp'
    :'Simulação guiada · roteiro, não IA · sem WhatsApp';
 }
+function showVirtualFlow(trace){
+ const steps=Array.isArray(trace)?trace:[];
+ el('demoFlow').hidden=steps.length===0;
+ el('demoFlowSteps').innerHTML=steps.map(step=>
+   '<div class="flowStep"><span>✓ '+esc(step.label)+'</span><small>'+esc(step.result)+'</small></div>'
+ ).join('');
+}
 async function status(){if(polling)return;polling=true;try{
  const data=await api('/api/wa-web/status');updateStatus(data);
  if(mode==='real')await refresh(false);
@@ -222,6 +246,7 @@ function setMode(value){mode=value;const real=value==='real';
  el('realTab').classList.toggle('sel',real);el('demoTab').classList.toggle('sel',!real);
  el('realTab').setAttribute('aria-selected',String(real));el('demoTab').setAttribute('aria-selected',String(!real));
  el('demoTools').hidden=real;el('demoExamples').hidden=real;
+ el('demoFlow').hidden=real||!el('demoFlowSteps').innerHTML;
  el('messageLabel').textContent=real?'Sua mensagem':'Você é o cliente virtual — escreva sua pergunta';
  el('composeHint').textContent=real
    ?'Mensagem real: será enviada somente ao número de teste configurado na Railway.'
@@ -244,11 +269,14 @@ async function send(){const text=el('message').value.trim();if(!text)return;
   saveDemo();render(demos);el('messageCounter').textContent=demos.length+' mensagem(ns) virtuais';
   error('sendError');el('send').disabled=true;el('send').textContent='Respondendo...';
   try{
-   const result=await api('/api/virtual-client/chat',{text,history});
+   const result=await api('/api/virtual-client/chat',{text,history,waitSeconds:Number(el('demoWait').value)||0});
    if(generation!==virtualGeneration)return;
    virtualEngine=result.engine==='ai'?'ai':'scripted';
+   showVirtualFlow(result.trace);
+   const resultStatus=result.action==='human'?'transferência simulada':
+     result.action==='paused'?'automação pausada':virtualEngine==='ai'?'IA de teste':'roteiro de demonstração';
    demos.push({direction:'out',role:'seller',text:result.reply,real:false,
-     status:virtualEngine==='ai'?'IA de teste':'roteiro de demonstração',at:new Date().toISOString()});
+     status:resultStatus,at:new Date().toISOString()});
    saveDemo();render(demos);
    el('messageCounter').textContent=demos.length+' mensagem(ns) virtuais';
    el('demoEngine').textContent=virtualEngine==='ai'
