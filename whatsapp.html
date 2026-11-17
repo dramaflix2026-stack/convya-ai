@@ -365,6 +365,6 @@ el('agentPause').onclick=()=>agentMode('paused');el('agentHuman').onclick=()=>ag
 
 el('message').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send()}});
 if(handoff)el('agentSite').textContent='Site enviado pela PageNova. Conecte o WhatsApp e ative o agente para validar a aprovação.';
-setMode('real');void status();setInterval(()=>{if(!document.hidden)status()},3500);
+setMode(new URLSearchParams(location.search).get('mode')==='demo'?'demo':'real');void status();setInterval(()=>{if(!document.hidden)status()},3500);
 })();
 </script></body></html>
