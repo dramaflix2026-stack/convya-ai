@@ -74,7 +74,7 @@ main{padding:29px clamp(13px,2.5vw,38px) 60px;max-width:1950px;width:100%;min-wi
   </section>
  </div>
  <section class="panel testing" id="simulador">
-  <div class="panelHead"><div><h2>▶ Testar Fluxo · Cliente Virtual</h2><p class="help" style="margin:6px 0 0">Simule mensagens de cliente, esperas e condições. Tudo executado localmente.</p></div><span class="badge">Sem envio real</span></div>
+  <div class="panelHead"><div><h2>▶ Testar Fluxo · Cliente Virtual</h2><p class="help" style="margin:6px 0 0">Simule mensagens de cliente, esperas e condições. Se houver outra etapa 'Aguardar mensagem', envie outra resposta para continuar.</p></div><span class="badge">Sem envio real</span></div>
   <div class="testGrid">
    <div><label class="label" for="customerInput">Mensagem do cliente</label><textarea class="field" id="customerInput" placeholder="Oi, quero saber sobre o site" rows="2">Oi, quero saber sobre o site</textarea>
     <div class="actions" style="margin-top:10px"><button class="btn primary" id="runBtn">▶ Executar simulação</button><button class="btn" id="resetTestBtn">Limpar teste</button></div>
@@ -95,7 +95,7 @@ const KEY='convya-visual-flows-v1';
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const loc=()=>location.pathname;
-let state={flows:[],selectedId:null},selectedNode=null,connecting=null,activeSteps=new Set(),dragging=null,transientMessage='';
+let state={flows:[],selectedId:null},selectedNode=null,connecting=null,activeSteps=new Set(),testSession=null;
 function load(){
  try{const data=JSON.parse(localStorage.getItem(KEY)||'null');
   if(data&&Array.isArray(data.flows)&&data.flows.length<=25){
@@ -112,6 +112,7 @@ function persist(){
 }
 function edit(){
  const f=current();if(f.status==='published')f.status='draft';
+ testSession=null;activeSteps.clear();
  f.updatedAt=new Date().toISOString();persist();drawStatus();
 }
 function statusText(s){return s==='published'?'Publicado no simulador':s==='paused'?'Pausado':'Rascunho'}
@@ -332,10 +333,14 @@ function renderTest(result){
  if(result.ok)notify(result.waiting?'Aguardando mensagem de entrada no simulador':'Teste executado. '+result.steps.length+' etapas percorridas.');
 }
 function runFlow(){const value=$('customerInput').value.trim().slice(0,850);
- const result=FLOW.simulate(current(),value);
- renderTest(result);$('simulador').scrollIntoView({behavior:'smooth',block:'start'});
+ if(testSession&&(testSession.ended||testSession.human))testSession=null;
+ const result=FLOW.advance(current(),testSession,value);
+ testSession=result.session;
+ renderTest(result);
+ if(result.ok&&result.waiting){$('customerInput').value='';$('customerInput').placeholder='Digite a próxima mensagem do cliente...'}
+ $('simulador').scrollIntoView({behavior:'smooth',block:'start'});
 }
-function resetTest(){activeSteps.clear();drawBoard();$('testSteps').innerHTML='<div class="empty">As etapas aparecerão aqui.</div>';$('testChat').innerHTML='<div class="empty">Clique em Executar simulação para ver as mensagens do fluxo.</div>';$('errors').innerHTML=''}
+function resetTest(){testSession=null;activeSteps.clear();drawBoard();$('testSteps').innerHTML='<div class="empty">As etapas aparecerão aqui.</div>';$('testChat').innerHTML='<div class="empty">Clique em Executar simulação para ver as mensagens do fluxo.</div>';$('errors').innerHTML='';$('customerInput').placeholder='Oi, quero saber sobre o site'}
 function centerBoard(){$('boardWrap').scrollTo({left:0,top:0,behavior:'smooth'})}
 function download(){
  const payload=JSON.stringify({version:1,flow:current()},null,2);
