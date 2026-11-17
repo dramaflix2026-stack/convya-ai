@@ -56,7 +56,7 @@ function previewFollowup(text,history,scenario){
   return null;
 }
 // No virtual simulation may claim it has handed a lead to a human or scheduled a callback.
-const unsupportedFollowup=/\b(j[aá] (?:encaminhei|registrei|agendei|avisei)|(?:vou|iremos) (?:encaminhar|agendar|pedir para .*entrar em contato)|(?:a equipe|algu[eé]m|nossa equipe) (?:vai|ir[aá]) entrar em contato|entrar[aã]o em contato)\b/i;
+const unsupportedFollowup=/\b(j[aá] (?:encaminhei|registrei|agendei|avisei)|(?:vou|iremos) (?:encaminhar|agendar|pedir para .*entrar em contato)|(?:a equipe|algu[eé]m|nossa equipe) (?:vai|ir[aá]|entrar[aá]) entrar em contato|(?:eles|a equipe|algu[eé]m) v[aã]o .{0,60}entrar em contato|entrar[aã]o em contato)\b/i;
 function enforceNoFakeHandoff(result){
   if(unsupportedFollowup.test(result.reply||''))return {
     reply:'Nesta simulação ainda não registrei seu interesse no CRM nem acionei a equipe. Para alguém entrar em contato de verdade, seria preciso registrar o lead e integrar esse encaminhamento. Enquanto isso posso explicar a proposta por aqui.',
@@ -173,6 +173,8 @@ async function aiReply(text,history,scenario){
    .flatMap(x=>(x.content||[]).filter(y=>y.type==='output_text').map(y=>String(y.text||'')))
    .join(' ').trim().slice(0,400);
   if(!reply)throw Error('empty response');
+  if(affirmative(text)&&/posso (continuar|explicar|mostrar|ajudar)|quer que eu (explique|continue)/i.test(reply))
+    return {reply:concretePitch(scenario),engine:'scripted',notice:'Resposta ajustada para avançar a proposta sem repetir pedidos de permissão.'};
   return enforceNoFakeHandoff({reply,engine:'ai',notice:'IA ativa somente nesta simulação; nenhum WhatsApp foi contatado.'});
  }catch{
   return {reply:scriptedReply(text,history,scenario),engine:'scripted',notice:'IA indisponível; respondeu o roteiro de demonstração.'};
@@ -213,8 +215,8 @@ async function handler(req,res,url,raw=Buffer.alloc(0)){
  const isNoReply=normalize(text).trim()==='n'||normalize(text).trim()==='nao';
  const previewRequest=wantsPreview(text);
  let result;
- if(intent==='opt_out'||isNoReply)result={reply:'Obrigado pelo seu tempo! Encerramos esta simulação. Nenhum contato será realizado.',engine:'scripted',notice:'Automação pausada no teste; nenhum WhatsApp acionado.'};
- else if(intent==='handoff')result={reply:'Entendi! Esta etapa exigiria atendimento humano, mas a simulação ainda não encaminha leads para a equipe. Não registrei nem agendei nenhum contato.',engine:'scripted',notice:'Encaminhamento humano apenas simulado. Nenhum CRM ou atendente foi acionado.'};
+ if(intent==='opt_out'||isNoReply)result={reply:'Automação pausada. Obrigado pelo seu tempo! Encerramos esta simulação; nenhum contato foi agendado.',engine:'scripted',notice:'Automação pausada no teste; nenhum WhatsApp acionado.'};
+ else if(intent==='handoff')result={reply:'Para discutir preço, contrato ou falar com uma pessoa da equipe, seria necessário atendimento humano. Nesta simulação não registrei seu interesse nem avisei ninguém; nenhum contato foi agendado.',engine:'scripted',notice:'Encaminhamento humano apenas simulado. Nenhum CRM ou atendente foi acionado.'};
  else if(previewRequest||previewAnswer)result={reply:previewAnswer||previewInvitation(scenario),engine:'scripted',notice:'Prévia explicada com transparência; nenhum site foi criado ou publicado.'};
  else result=aiEnabled()?await aiReply(text,history,scenario):{
   reply:scriptedReply(text,history,scenario),engine:'scripted',
