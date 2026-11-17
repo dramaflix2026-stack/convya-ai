@@ -44,6 +44,17 @@
   flow.nodes=[start,input,wait,message,end];
   return flow;
  }
+ function createYesNoDemo(){
+  const flow={id:id(),name:'Exemplo SIM/NÃO',status:'draft',updatedAt:new Date().toISOString(),nodes:[]};
+  const start=node('start',600,65),input=node('input',600,245),condition=node('condition',600,435);
+  const yes=node('text',310,660),no=node('text',890,660),end=node('end',600,900);
+  input.config.match='';condition.config.contains='sim';
+  yes.config.text='Ótimo! Vou apresentar nossos serviços.';
+  no.config.text='Sem problemas! Estamos à disposição.';
+  start.next.out=input.id;input.next.out=condition.id;condition.next.yes=yes.id;condition.next.no=no.id;
+  yes.next.out=end.id;no.next.out=end.id;
+  flow.nodes=[start,input,condition,yes,no,end];return flow;
+ }
  function cleanNode(n){
   if(!n||typeof n!=='object'||!TYPES[n.type]||typeof n.id!=='string'||n.id.length>80)throw Error('Bloco inválido');
   return {id:n.id,type:n.type,x:Math.min(2800,Math.max(0,Number.isFinite(n.x)?Math.round(n.x):100)),
@@ -167,5 +178,5 @@
   const {session,...publicResult}=result;
   return publicResult;
  }
- return {TYPES,MAX_NODES,create,node,cleanFlow,connect,validate,advance,simulate,validUrl};
+ return {TYPES,MAX_NODES,create,createYesNoDemo,node,cleanFlow,connect,validate,advance,simulate,validUrl};
 });
