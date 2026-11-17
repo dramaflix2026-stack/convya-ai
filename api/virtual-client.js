@@ -6,15 +6,18 @@
  * Optional OpenAI engine requires an explicit server opt-in to protect the
  * public, passwordless MVP from accidental API spend.
  */
+const {classify}=require('./flow-policy');
 const MAX_HISTORY=16;
 const MAX_TEXT=850;
 const globalCalls=[];  // inexpensive process-wide cap for optional billable AI
+const perClient=new Map();
 const normalize=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const normalizeHistory=items=>{
  if(!Array.isArray(items))return [];
  return items.slice(-MAX_HISTORY).filter(x=>x&&['customer','seller'].includes(x.role)&&typeof x.text==='string')
   .map(x=>({role:x.role,text:x.text.slice(0,MAX_TEXT)}));
 };
+// Paid AI remains off unless explicitly enabled by the operator in Railway.
 const aiEnabled=()=>process.env.CONVYA_VIRTUAL_AI_ENABLED==='true'&&
   typeof process.env.OPENAI_API_KEY==='string'&&process.env.OPENAI_API_KEY.length>=15;
 function scriptedReply(message,history){
@@ -38,6 +41,31 @@ function scriptedReply(message,history){
  if(history.length>6)
   return 'Entendi! Para uma resposta específica sobre essa necessidade, a equipe precisaria conhecer melhor o seu projeto. Você está buscando um site ou automação de atendimento?';
  return 'Que legal! Posso te mostrar como seria um atendimento comercial da PageNova. Você procura um site para sua empresa ou tem uma dúvida sobre o serviço?';
+}
+// Public passwordless demo; basic per-client throttling with no personal identifier exposed.
+function allowRequest(req){
+ const now=Date.now();
+ for(const [id,entry] of perClient)if(now-entry.start>900000)perClient.delete(id);
+ if(perClient.size>800)perClient.clear();
+ const ip=String(req.socket?.remoteAddress||'unknown').slice(0,80);
+ const key=ip+':'+String(req.headers['x-forwarded-for']||'').split(',')[0].slice(0,70);
+ const entry=perClient.get(key);
+ if(!entry||now-entry.start>900000){perClient.set(key,{start:now,count:1});return true}
+ if(entry.count>=30)return false;
+ entry.count++;
+ return true;
+}
+function traceFor(intent,engine,waitSeconds){
+ const trace=[
+  {id:'inbound',label:'Mensagem recebida',result:'Cliente virtual',status:'passed'},
+  {id:'wait',label:'Espera',result:waitSeconds===60?'1 minuto simulado (execução acelerada)':'Sem espera',status:'passed'},
+  {id:'condition',label:'Condição',result:intent==='handoff'?'Solicita atendente ou negociação':intent==='opt_out'?'Pediu para parar':'Atendimento normal',status:'passed'}
+ ];
+ if(intent==='normal')trace.push({id:'reply',label:engine==='ai'?'Inteligência artificial':'Roteiro guiado',
+   result:engine==='ai'?'IA real gerou resposta':'Resposta da demonstração',status:'passed'});
+ else trace.push({id:'action',label:'Ação',result:intent==='handoff'?'Transferir para humano (simulado)':'Pausar automação (simulado)',status:'passed'});
+ trace.push({id:'send',label:'Saída',result:'Mensagem exibida na tela; nenhum WhatsApp acionado',status:'passed'});
+ return trace;
 }
 function reserveBudget(){
  const now=Date.now();
@@ -105,14 +133,22 @@ async function handler(req,res,url,raw=Buffer.alloc(0)){
  try{body=JSON.parse(raw.toString('utf8'))}catch{return send(res,400,{error:'JSON inválido.'})}
  if(!body||typeof body.text!=='string'||!body.text.trim()||body.text.length>MAX_TEXT||
     (body.history!==undefined&&!Array.isArray(body.history))||
-    (Array.isArray(body.history)&&body.history.length>MAX_HISTORY))
-  return send(res,422,{error:'Envie uma mensagem de até 850 caracteres.'});
+    (Array.isArray(body.history)&&body.history.length>MAX_HISTORY)||
+    (body.waitSeconds!==undefined&&![0,60].includes(body.waitSeconds)))
+  return send(res,422,{error:'Envie uma mensagem de até 850 caracteres; espera simulada de 0 ou 60 segundos.'});
+ if(!allowRequest(req))return send(res,429,{error:'Limite de testes virtuais atingido para esta sessão. Tente novamente mais tarde.'});
  const text=body.text.trim();
  const history=normalizeHistory(body.history);
- const result=aiEnabled()?await aiReply(text,history):{
+ const intent=classify(text);
+ let result;
+ if(intent==='opt_out')result={reply:'Entendido! Esta simulação pausaria o atendimento automático. Nenhuma outra mensagem seria enviada sem nova interação.',engine:'scripted',notice:'Automação pausada no teste; nenhum WhatsApp acionado.'};
+ else if(intent==='handoff')result={reply:'Entendi! Sou a assistente de IA da PageNova e vou deixar essa etapa com uma pessoa da equipe. Obrigada!',engine:'scripted',notice:'Transferência humana simulada. Nenhum atendimento real foi acionado.'};
+ else result=aiEnabled()?await aiReply(text,history):{
   reply:scriptedReply(text,history),engine:'scripted',
   notice:'Roteiro de demonstração. Não é uma resposta de IA nem uma mensagem do WhatsApp.'
  };
- return send(res,200,{ok:true,virtual:true,whatsappSent:false,...result});
+ return send(res,200,{ok:true,virtual:true,whatsappSent:false,
+  intent,action:intent==='handoff'?'human':intent==='opt_out'?'paused':'continue',
+  trace:traceFor(intent,result.engine,body.waitSeconds===60?60:0),...result});
 }
 module.exports={handler,scriptedReply,aiEnabled};
