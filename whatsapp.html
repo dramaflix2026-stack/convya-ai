@@ -36,7 +36,8 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
 .statusRows{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.chip{font-size:11px;border-radius:30px;padding:7px 10px;background:#f1f7f3;border:1px solid #e1ede4;color:#416a50}
 .chatBox{padding:0;overflow:hidden;display:flex;flex-direction:column;min-height:670px}
 .chatHeader{padding:23px 23px 15px;border-bottom:1px solid var(--line)}
-.tabBar{display:flex;gap:7px;margin-top:13px}.tab{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 13px;color:#5f7065;font-weight:750}.tab.sel{color:var(--deep);border-color:#a9ddbb;background:var(--light)}
+.tabBar{display:flex;gap:7px;margin-top:13px;flex-wrap:wrap}.tab{font-size:12px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px 13px;color:#5f7065;font-weight:750}.tab.sel{color:var(--deep);border-color:#a9ddbb;background:var(--light)}
+.demoTools{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:12px}.demoTools .btn{min-height:32px;padding:6px 10px;font-size:11px}.demoExamples{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:11px;color:var(--sub);font-size:11px}.demoExample{border:1px solid #cfe5d5;border-radius:22px;background:#f6fbf7;padding:6px 10px;color:#276641;font-size:11px}.demoExample:hover{background:#e4f8e8}.demoTools[hidden],.demoExamples[hidden]{display:none!important}
 .chatWindow{height:390px;overflow-y:auto;padding:18px 22px;background:radial-gradient(ellipse at top left,#f0faf2 0%,#fff 46%);flex:1;min-height:340px}
 .empty{min-height:300px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:9px}.empty .qrEmoji{margin:0 0 3px}.empty strong{font-size:17px}.empty .muted{max-width:300px}
 .bubble{max-width:78%;width:max-content;padding:12px 14px;margin:0 0 10px;border-radius:14px 14px 14px 3px;background:#ecf1ed;border:1px solid #e2ebe4;overflow-wrap:anywhere;white-space:pre-wrap;line-height:1.55}
@@ -91,12 +92,18 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
 
     <section class="panel chatBox" id="conversas" aria-label="Caixa de conversas">
       <div class="chatHeader"><div class="sectionHead" style="margin-bottom:0"><span class="iconBox">☏</span><div style="flex:1"><h2>2. Sua conversa de teste</h2><p class="muted" id="messageCounter">Nenhuma mensagem ainda</p></div></div>
-        <div class="tabBar" role="tablist" aria-label="Tipo de conversa"><button class="tab sel" id="realTab" role="tab" aria-selected="true" type="button">Conversa real</button><button class="tab" id="demoTab" role="tab" aria-selected="false" type="button">Simulação fictícia</button></div>
+        <div class="tabBar" role="tablist" aria-label="Tipo de conversa"><button class="tab sel" id="realTab" role="tab" aria-selected="true" type="button">WhatsApp Real</button><button class="tab" id="demoTab" role="tab" aria-selected="false" type="button">🤖 Cliente Virtual</button></div>
+        <div class="demoTools" id="demoTools" hidden>
+          <span class="chip" id="demoEngine">Simulação guiada · sem envio ao celular</span>
+          <button class="btn weak" id="resetDemo" type="button">Reiniciar conversa</button>
+        </div>
       </div>
       <div class="chatWindow" id="messages" aria-live="polite">
         <div class="empty"><span class="qrEmoji">☏</span><strong>A conversa aparecerá aqui</strong><p class="muted">Conecte o WhatsApp para enviar e receber mensagens do número autorizado.</p></div>
       </div>
-      <div class="compose"><label for="message" style="margin-top:0">Sua mensagem</label><div class="flex"><textarea id="message" maxlength="1000" placeholder="Escreva uma mensagem para o contato de teste..."></textarea><button id="send" class="btn primary" type="button" disabled>Enviar</button></div><p class="hint" id="composeHint">Somente seu contato de teste poderá receber mensagens reais.</p><p class="alert" id="sendError" role="status" aria-live="polite"></p></div>
+      <div class="compose"><label for="message" style="margin-top:0" id="messageLabel">Sua mensagem</label><div class="flex"><textarea id="message" maxlength="1000" placeholder="Escreva uma mensagem para o contato de teste..."></textarea><button id="send" class="btn primary" type="button" disabled>Enviar</button></div><p class="hint" id="composeHint">Somente seu contato de teste poderá receber mensagens reais.</p>
+        <div class="demoExamples" id="demoExamples" hidden><span>Experimente:</span><button type="button" class="demoExample" data-message="Oi">Oi</button><button type="button" class="demoExample" data-message="Quero um site para minha empresa">Quero um site</button><button type="button" class="demoExample" data-message="Quanto custa um site?">Quanto custa?</button><button type="button" class="demoExample" data-message="Quero falar com um humano">Falar com humano</button></div>
+        <p class="alert" id="sendError" role="status" aria-live="polite"></p></div>
     </section>
   </div>
 
@@ -120,8 +127,29 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
 const el=id=>document.getElementById(id);
 const handoff=new URLSearchParams(location.search).get('handoff')||'';
 if(handoff)history.replaceState(null,'',location.pathname);
-let mode='real',connected=false,statusReady=false,lastMsgs=[],polling=false;
-const demos=[{direction:'in',text:'Olá! Esta mensagem é fictícia. Experimente a conversa sem conectar seu WhatsApp.',real:false,at:new Date().toISOString()}];
+let mode='real',connected=false,statusReady=false,lastMsgs=[],polling=false,virtualBusy=false,virtualGeneration=0;
+let virtualEngine='scripted';
+const demoKey='convya-virtual-client-v1';
+const initialDemo=()=>[{direction:'out',role:'seller',text:'Olá! 👋 Sou o Vendedor Virtual da Convya. Finja que você é um cliente e me faça uma pergunta. Esta conversa é uma simulação, não usa seu WhatsApp.',real:false,status:'demonstração',at:new Date().toISOString()}];
+function loadDemo(){
+ try{
+  const saved=JSON.parse(localStorage.getItem(demoKey)||'null');
+  if(Array.isArray(saved)&&saved.length&&saved.length<=40&&saved.every(m=>m&&typeof m.text==='string'&&m.text.length<=1000&&['customer','seller'].includes(m.role))){
+   return saved.map(m=>({...m,real:false,direction:m.role==='seller'?'out':'in'}));
+  }
+ }catch{}
+ return initialDemo();
+}
+let demos=loadDemo();
+function saveDemo(){
+ try{localStorage.setItem(demoKey,JSON.stringify(demos.slice(-40)))}catch{}
+}
+function resetDemo(){
+ virtualGeneration++;
+ demos=initialDemo();
+ saveDemo();
+ if(mode==='demo'){render(demos);el('messageCounter').textContent=demos.length+' mensagem(ns) virtuais';error('sendError');}
+}
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const error=(id,msg='')=>el(id).textContent=msg;
 function auth(){return true}
@@ -149,16 +177,29 @@ function updateStatus(data){
  el('connect').textContent=connecting?'Atualizar conexão':connected?'WhatsApp conectado':'Gerar QR Code';
  el('connect').disabled=connected;
  el('disconnect').disabled=!connected&&!connecting;
- el('send').disabled=mode==='real'&&!connected;
+ el('send').disabled=mode==='real'?!connected:virtualBusy;
  // Never leave an old reconnection warning visible after the link is online.
  if(data.error&&!connected)error('connectError',data.error);
  else error('connectError','');
 }
 function render(list){
  const host=el('messages');
- if(!list.length){host.innerHTML='<div class="empty"><span class="qrEmoji">☏</span><strong>Nenhuma mensagem ainda</strong><p class="muted">Conecte seu WhatsApp e converse apenas com o contato autorizado.</p></div>';return}
- host.innerHTML=list.slice(-100).map(m=>'<div class="bubble '+(m.direction==='out'?'out':'')+' '+(!m.real?'demo':'')+'"><div>'+esc(m.text)+'</div><div class="tiny">'+(m.direction==='out'?'Você / Convya':'Contato de teste')+(m.real?'':' · Fictícia')+' · '+esc(m.status||'')+'</div></div>').join('');
+ if(!list.length){host.innerHTML='<div class="empty"><span class="qrEmoji">☏</span><strong>Nenhuma mensagem ainda</strong><p class="muted">Comece uma conversa no modo escolhido.</p></div>';return}
+ host.innerHTML=list.slice(-100).map(m=>{
+   const virtual=!m.real;
+   const who=virtual?(m.role==='seller'?'Vendedor Convya':'Cliente virtual (você)'):(m.direction==='out'?'Você / Convya':'Contato de teste');
+   return '<div class="bubble '+(m.direction==='out'?'out':'')+' '+(virtual?'demo':'')+'"><div>'+esc(m.text)+'</div><div class="tiny">'+who+(virtual?' · Simulado':'')+' · '+esc(m.status||'')+'</div></div>'
+ }).join('');
  host.scrollTop=host.scrollHeight;
+}
+async function loadVirtualEngine(){
+ try{
+  const state=await api('/api/virtual-client/status');
+  virtualEngine=state.engine==='ai'?'ai':'scripted';
+ }catch{virtualEngine='scripted'}
+ el('demoEngine').textContent=virtualEngine==='ai'
+   ?'Vendedor IA · teste virtual · sem WhatsApp'
+   :'Simulação guiada · roteiro, não IA · sem WhatsApp';
 }
 async function status(){if(polling)return;polling=true;try{
  const data=await api('/api/wa-web/status');updateStatus(data);
@@ -180,14 +221,48 @@ async function refresh(showError=true){if(mode!=='real')return;
 function setMode(value){mode=value;const real=value==='real';
  el('realTab').classList.toggle('sel',real);el('demoTab').classList.toggle('sel',!real);
  el('realTab').setAttribute('aria-selected',String(real));el('demoTab').setAttribute('aria-selected',String(!real));
- el('composeHint').textContent=real?'A mensagem será enviada de verdade, somente para seu contato de teste.':'Modo fictício: nada será enviado ao WhatsApp.';
- el('message').placeholder=real?'Escreva uma mensagem para o contato de teste...':'Digite uma mensagem fictícia...';
- el('send').disabled=real&&!connected;
- el('messageCounter').textContent=real?lastMsgs.length+' mensagem(ns) reais':demos.length+' mensagem(ns) fictícias';
- render(real?lastMsgs:demos);if(real)refresh(false);
+ el('demoTools').hidden=real;el('demoExamples').hidden=real;
+ el('messageLabel').textContent=real?'Sua mensagem':'Você é o cliente virtual — escreva sua pergunta';
+ el('composeHint').textContent=real
+   ?'Mensagem real: será enviada somente ao número de teste configurado na Railway.'
+   :'Teste fictício dentro da Convya: as respostas aparecem aqui e NADA é enviado ao WhatsApp do seu celular.';
+ el('message').placeholder=real?'Escreva uma mensagem para o contato de teste...':'Ex.: Oi, quanto custa um site?';
+ el('send').textContent=real?'Enviar':'Testar conversa';
+ el('send').disabled=real?!connected:virtualBusy;
+ el('messageCounter').textContent=real?lastMsgs.length+' mensagem(ns) reais':demos.length+' mensagem(ns) virtuais';
+ render(real?lastMsgs:demos);
+ if(real)void refresh(false);else void loadVirtualEngine();
 }
 async function send(){const text=el('message').value.trim();if(!text)return;
- if(mode==='demo'){demos.push({direction:'out',text,real:false,status:'simulated'});demos.push({direction:'in',text:'Resposta fictícia: '+text,real:false,status:'simulated'});el('message').value='';setMode('demo');return}
+ if(mode==='demo'){
+  if(virtualBusy)return;
+  virtualBusy=true;
+  const generation=virtualGeneration;
+  const history=demos.slice(-16).map(m=>({role:m.role,text:m.text}));
+  demos.push({direction:'in',role:'customer',text,real:false,status:'enviada no simulador',at:new Date().toISOString()});
+  el('message').value='';
+  saveDemo();render(demos);el('messageCounter').textContent=demos.length+' mensagem(ns) virtuais';
+  error('sendError');el('send').disabled=true;el('send').textContent='Respondendo...';
+  try{
+   const result=await api('/api/virtual-client/chat',{text,history});
+   if(generation!==virtualGeneration)return;
+   virtualEngine=result.engine==='ai'?'ai':'scripted';
+   demos.push({direction:'out',role:'seller',text:result.reply,real:false,
+     status:virtualEngine==='ai'?'IA de teste':'roteiro de demonstração',at:new Date().toISOString()});
+   saveDemo();render(demos);
+   el('messageCounter').textContent=demos.length+' mensagem(ns) virtuais';
+   el('demoEngine').textContent=virtualEngine==='ai'
+     ?'Vendedor IA · teste virtual · sem WhatsApp'
+     :'Simulação guiada · roteiro, não IA · sem WhatsApp';
+  }catch(e){
+   if(generation===virtualGeneration)error('sendError','Falha na simulação: '+e.message);
+  }finally{
+   virtualBusy=false;
+   el('send').textContent=mode==='real'?'Enviar':'Testar conversa';
+   el('send').disabled=mode==='real'?!connected:false;
+  }
+  return;
+ }
  if(!auth())return;if(!connected){error('sendError','Conecte seu WhatsApp primeiro.');return}
  el('send').disabled=true;error('sendError');
  try{await api('/api/wa-web/send',{text});el('message').value='';await refresh(false)}
@@ -216,6 +291,10 @@ async function agentMode(mode){
 }
 el('connect').onclick=connect;el('disconnect').onclick=disconnect;el('send').onclick=send;
 el('realTab').onclick=()=>setMode('real');el('demoTab').onclick=()=>setMode('demo');
+el('resetDemo').onclick=resetDemo;
+document.querySelectorAll('.demoExample').forEach(button=>{
+ button.addEventListener('click',()=>{if(mode!=='demo'||virtualBusy)return;el('message').value=button.dataset.message||'';void send()});
+});
 el('agentStart').onclick=agentActivate;
 el('agentPause').onclick=()=>agentMode('paused');el('agentHuman').onclick=()=>agentMode('human');el('agentResume').onclick=()=>agentMode('active');
 
