@@ -7,6 +7,7 @@ const places=require('./api/places/search');
 const placesHealth=require('./api/places/health');
 const salesAgent=require('./api/sales-agent');
 const waWeb=require('./api/whatsapp-web');
+const virtualClient=require('./api/virtual-client');
 const index=fs.readFileSync(path.join(__dirname,'index.html'));
 const whatsappHtml=fs.readFileSync(path.join(__dirname,'whatsapp.html'));
 const safeHeader={
@@ -52,6 +53,24 @@ const server=http.createServer(async(req,res)=>{
    if(!body||typeof body!=='object'||Array.isArray(body))return json(res,400,{error:'Pesquisa inválida'});
    req.body=body;return await places(req,adapter(res));
   }catch(e){if(!res.writableEnded)return json(res,500,{error:'Falha no processamento da pesquisa'})}
+  return;
+ }
+ if(pathname.startsWith('/api/virtual-client/')){
+  const allowed=(req.method==='GET'&&pathname==='/api/virtual-client/status')||
+    (req.method==='POST'&&pathname==='/api/virtual-client/chat');
+  if(!allowed)return json(res,404,{error:'Rota não encontrada.'});
+  try{
+    if(req.method==='POST'){
+      if(String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase()!=='application/json')
+        return json(res,415,{error:'Content-Type JSON obrigatório.'});
+      const raw=await rawBody(req,12000);
+      if(!raw)return json(res,413,{error:'Mensagem de teste muito grande.'});
+      return virtualClient.handler(req,res,url,raw);
+    }
+    return virtualClient.handler(req,res,url,Buffer.alloc(0));
+  }catch{
+    if(!res.writableEnded)return json(res,500,{error:'Falha na conversa virtual.'});
+  }
   return;
  }
  if(pathname.startsWith('/api/wa-web/')){
