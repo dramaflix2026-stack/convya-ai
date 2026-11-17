@@ -101,12 +101,21 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
         <div class="tabBar" role="tablist" aria-label="Tipo de conversa"><button class="tab sel" id="realTab" role="tab" aria-selected="true" type="button">WhatsApp Real</button><button class="tab" id="demoTab" role="tab" aria-selected="false" type="button">🤖 Cliente Virtual</button></div>
         <div class="demoTools" id="demoTools" hidden>
           <span class="chip" id="demoEngine">Simulação guiada · sem envio ao celular</span>
+          <label for="demoScenario" style="margin:0">Possível cliente:
+            <select class="field" id="demoScenario" style="width:auto;max-width:185px;padding:6px 10px">
+              <option value="hamburgueria">Hamburgueria</option>
+              <option value="barbearia">Barbearia</option>
+              <option value="loja">Loja de roupas</option>
+              <option value="clinica">Clínica</option>
+              <option value="empresa">Empresa de serviços</option>
+            </select>
+          </label>
           <label for="demoWait" style="margin:0">Espera:
             <select class="field" id="demoWait" style="width:auto;padding:6px 10px">
               <option value="0">Imediata</option><option value="60">1 minuto (simulado)</option>
             </select>
           </label>
-          <button class="btn weak" id="resetDemo" type="button">Reiniciar conversa</button>
+          <button class="btn weak" id="resetDemo" type="button">Nova abordagem</button>
         </div>
         <div class="flowTrace" id="demoFlow" role="status" aria-live="polite" hidden>
           <strong>Fluxo executado</strong><div class="flowSteps" id="demoFlowSteps"></div>
@@ -117,7 +126,12 @@ textarea{min-height:82px;resize:vertical}::placeholder{color:#9aaa9f}
         <div class="empty"><span class="qrEmoji">☏</span><strong>A conversa aparecerá aqui</strong><p class="muted">Conecte o WhatsApp para enviar e receber mensagens do número autorizado.</p></div>
       </div>
       <div class="compose"><label for="message" style="margin-top:0" id="messageLabel">Sua mensagem</label><div class="flex"><textarea id="message" maxlength="1000" placeholder="Escreva uma mensagem para o contato de teste..."></textarea><button id="send" class="btn primary" type="button" disabled>Enviar</button></div><p class="hint" id="composeHint">Somente seu contato de teste poderá receber mensagens reais.</p>
-        <div class="demoExamples" id="demoExamples" hidden><span>Experimente:</span><button type="button" class="demoExample" data-message="Oi">Oi</button><button type="button" class="demoExample" data-message="Quero um site para minha empresa">Quero um site</button><button type="button" class="demoExample" data-message="Quanto custa um site?">Quanto custa?</button><button type="button" class="demoExample" data-message="Quero falar com um humano">Falar com humano</button></div>
+        <div class="demoExamples" id="demoExamples" hidden><span>Responda como cliente:</span>
+          <button type="button" class="demoExample" data-message="Pode me explicar melhor?">Tenho interesse</button>
+          <button type="button" class="demoExample" data-message="Eu já tenho Instagram. Por que preciso de um site?">Já tenho Instagram</button>
+          <button type="button" class="demoExample" data-message="Quanto custa?">Quanto custa?</button>
+          <button type="button" class="demoExample" data-message="Quero ver uma prévia.">Ver uma prévia</button>
+          <button type="button" class="demoExample" data-message="Não tenho interesse, obrigado.">Sem interesse</button></div>
         <p class="alert" id="sendError" role="status" aria-live="polite"></p></div>
     </section>
   </div>
@@ -144,8 +158,20 @@ const handoff=new URLSearchParams(location.search).get('handoff')||'';
 if(handoff)history.replaceState(null,'',location.pathname);
 let mode='real',connected=false,statusReady=false,lastMsgs=[],polling=false,virtualBusy=false,virtualGeneration=0;
 let virtualEngine='scripted';
-const demoKey='convya-virtual-client-v1';
-const initialDemo=()=>[{direction:'out',role:'seller',text:'Olá! 👋 Sou o Vendedor Virtual da Convya. Finja que você é um cliente e me faça uma pergunta. Esta conversa é uma simulação, não usa seu WhatsApp.',real:false,status:'demonstração',at:new Date().toISOString()}];
+const demoKey='convya-virtual-client-sales-v2',demoScenarioKey='convya-virtual-scenario-v2';
+const scenarioOffers={
+ hamburgueria:'um site com cardápio de hambúrgueres, fotos e botão para pedidos via WhatsApp',
+ barbearia:'um site com serviços, galeria de cortes e agendamento por WhatsApp',
+ loja:'um site com vitrine de produtos e contato direto pelo WhatsApp',
+ clinica:'um site institucional para apresentar os serviços, a equipe e facilitar agendamentos',
+ empresa:'um site profissional com serviços, portfólio e formulário de contato'
+};
+const scenarioLabels={hamburgueria:'hamburgueria',barbearia:'barbearia',loja:'loja de roupas',clinica:'clínica',empresa:'empresa de serviços'};
+let virtualScenario='hamburgueria';
+try{const saved=localStorage.getItem(demoScenarioKey);if(Object.hasOwn(scenarioOffers,saved))virtualScenario=saved}catch{}
+const initialDemo=()=>[{direction:'out',role:'seller',
+ text:'Olá! Tudo bem? Sou a assistente virtual da PageNova. Gostaria de apresentar uma ideia para sua '+scenarioLabels[virtualScenario]+': '+scenarioOffers[virtualScenario]+'. Posso explicar em um minuto como isso pode ajudar seu negócio?',
+ real:false,status:'abordagem comercial simulada',at:new Date().toISOString()}];
 function loadDemo(){
  try{
   const saved=JSON.parse(localStorage.getItem(demoKey)||'null');
@@ -246,12 +272,13 @@ function setMode(value){mode=value;const real=value==='real';
  el('realTab').classList.toggle('sel',real);el('demoTab').classList.toggle('sel',!real);
  el('realTab').setAttribute('aria-selected',String(real));el('demoTab').setAttribute('aria-selected',String(!real));
  el('demoTools').hidden=real;el('demoExamples').hidden=real;
+ el('demoScenario').value=virtualScenario;
  el('demoFlow').hidden=real||!el('demoFlowSteps').innerHTML;
- el('messageLabel').textContent=real?'Sua mensagem':'Você é o cliente virtual — escreva sua pergunta';
+ el('messageLabel').textContent=real?'Sua mensagem':'Você é o dono do negócio — responda ao vendedor da PageNova';
  el('composeHint').textContent=real
    ?'Mensagem real: será enviada somente ao número de teste configurado na Railway.'
-   :'Teste fictício dentro da Convya: as respostas aparecem aqui e NADA é enviado ao WhatsApp do seu celular.';
- el('message').placeholder=real?'Escreva uma mensagem para o contato de teste...':'Ex.: Oi, quanto custa um site?';
+   :'A IA faz a oferta de um site; você interpreta o possível cliente. Nenhuma mensagem é enviada ao WhatsApp real.';
+ el('message').placeholder=real?'Escreva uma mensagem para o contato de teste...':'Ex.: Já tenho Instagram. Por que preciso de um site?';
  el('send').textContent=real?'Enviar':'Testar conversa';
  el('send').disabled=real?!connected:virtualBusy;
  el('messageCounter').textContent=real?lastMsgs.length+' mensagem(ns) reais':demos.length+' mensagem(ns) virtuais';
@@ -269,7 +296,7 @@ async function send(){const text=el('message').value.trim();if(!text)return;
   saveDemo();render(demos);el('messageCounter').textContent=demos.length+' mensagem(ns) virtuais';
   error('sendError');el('send').disabled=true;el('send').textContent='Respondendo...';
   try{
-   const result=await api('/api/virtual-client/chat',{text,history,waitSeconds:Number(el('demoWait').value)||0});
+   const result=await api('/api/virtual-client/chat',{text,history,scenario:virtualScenario,waitSeconds:Number(el('demoWait').value)||0});
    if(generation!==virtualGeneration)return;
    virtualEngine=result.engine==='ai'?'ai':'scripted';
    showVirtualFlow(result.trace);
@@ -320,6 +347,11 @@ async function agentMode(mode){
 el('connect').onclick=connect;el('disconnect').onclick=disconnect;el('send').onclick=send;
 el('realTab').onclick=()=>setMode('real');el('demoTab').onclick=()=>setMode('demo');
 el('resetDemo').onclick=resetDemo;
+el('demoScenario').onchange=value=>{
+ virtualScenario=Object.hasOwn(scenarioOffers,el('demoScenario').value)?el('demoScenario').value:'hamburgueria';
+ try{localStorage.setItem(demoScenarioKey,virtualScenario)}catch{}
+ resetDemo();
+};
 document.querySelectorAll('.demoExample').forEach(button=>{
  button.addEventListener('click',()=>{if(mode!=='demo'||virtualBusy)return;el('message').value=button.dataset.message||'';void send()});
 });
