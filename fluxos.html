@@ -50,6 +50,7 @@ main{padding:29px clamp(13px,2.5vw,38px) 60px;max-width:1950px;width:100%;min-wi
  <div class="actions" style="margin-bottom:13px">
   <select id="flowSelect" class="field" aria-label="Selecionar fluxo" style="max-width:260px"></select>
   <button class="btn" id="newBtn">+ Novo fluxo</button>
+  <button class="btn" id="yesNoDemoBtn" title="Criar um fluxo pronto para testar SIM e NÃO">◇ Exemplo SIM/NÃO</button>
   <button class="btn" id="duplicateBtn">Duplicar</button>
   <button class="btn" id="exportBtn">Exportar JSON</button>
   <button class="btn" id="importBtn">Importar JSON</button><input hidden id="fileInput" type="file" accept="application/json,.json">
@@ -290,7 +291,14 @@ function newFlow(){
  const f=FLOW.create(name.trim().slice(0,90)||'Novo atendimento');
  state.flows.push(f);state.selectedId=f.id;selectedNode=null;activeSteps.clear();persist();renderAll();resetTest();
 }
-function duplicateFlow(){
+function createYesNoFlow(){
+  if(state.flows.length>=25){notify('Máximo de 25 fluxos neste navegador.');return}
+  const f=FLOW.createYesNoDemo();state.flows.push(f);state.selectedId=f.id;
+  selectedNode=null;connecting=null;persist();renderAll();resetTest();
+  $('customerInput').value='sim';
+  notify('Exemplo SIM/NÃO criado. Teste "sim" e depois "não". Nenhum WhatsApp será acionado.');
+ }
+ function duplicateFlow(){
  if(state.flows.length>=25){notify('Máximo de 25 fluxos neste navegador.');return}
  const f=JSON.parse(JSON.stringify(current()));
  f.id=FLOW.create().id;f.name=(f.name+' (cópia)').slice(0,90);f.status='draft';f.updatedAt=new Date().toISOString();
@@ -373,7 +381,7 @@ function setup(){
  $('saveBtn').onclick=()=>{persist();notify('Rascunho salvo localmente. Nenhum envio real ativado.')};
  $('testBtn').onclick=runFlow;$('runBtn').onclick=runFlow;
  $('publishBtn').onclick=publishFlow;$('pauseBtn').onclick=pauseFlow;
- $('newBtn').onclick=newFlow;$('duplicateBtn').onclick=duplicateFlow;$('deleteBtn').onclick=deleteFlow;
+ $('newBtn').onclick=newFlow;$('yesNoDemoBtn').onclick=createYesNoFlow;$('duplicateBtn').onclick=duplicateFlow;$('deleteBtn').onclick=deleteFlow;
  $('renameBtn').onclick=()=>{const name=prompt('Nome do fluxo',current().name);if(name!==null&&name.trim()){current().name=name.trim().slice(0,90);edit();renderAll()}};
  $('resetTestBtn').onclick=resetTest;$('centerBtn').onclick=centerBoard;
  $('exportBtn').onclick=download;$('importBtn').onclick=()=>$('fileInput').click();
