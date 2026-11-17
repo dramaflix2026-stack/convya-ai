@@ -142,7 +142,7 @@ async function handler(req,res,url,raw=Buffer.alloc(0)){
  const intent=classify(text);
  let result;
  if(intent==='opt_out')result={reply:'Entendido! Esta simulação pausaria o atendimento automático. Nenhuma outra mensagem seria enviada sem nova interação.',engine:'scripted',notice:'Automação pausada no teste; nenhum WhatsApp acionado.'};
- else if(intent==='handoff')result={reply:'Entendi! Sou a assistente de IA da PageNova e vou deixar essa etapa com uma pessoa da equipe. Obrigada!',engine:'scripted',notice:'Transferência humana simulada. Nenhum atendimento real foi acionado.'};
+ else if(intent==='handoff')result={reply:'Entendi! Para falar sobre preços, contratos ou com uma pessoa da equipe, a conversa seria transferida para atendimento humano. Esta é apenas uma simulação.',engine:'scripted',notice:'Transferência humana simulada. Nenhum atendimento real foi acionado.'};
  else result=aiEnabled()?await aiReply(text,history):{
   reply:scriptedReply(text,history),engine:'scripted',
   notice:'Roteiro de demonstração. Não é uma resposta de IA nem uma mensagem do WhatsApp.'
