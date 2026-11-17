@@ -168,3 +168,18 @@ test('only static GET endpoints are added; no live WhatsApp flow sending route',
  assert.equal(status.status,200);
 });
 after(async()=>{if(server.listening)await new Promise(resolve=>server.close(resolve))});
+
+test('ready-made SIM/NÃO example routes each answer independently',()=>{
+ const f=flow.createYesNoDemo();
+ assert.equal(f.nodes.length,6);
+ assert.deepEqual(flow.validate(f),[]);
+ const yes=flow.simulate(f,'SIM'),no=flow.simulate(f,'não');
+ assert.equal(yes.ok,true);assert.equal(no.ok,true);
+ assert.deepEqual(yes.steps.map(s=>s.type),['start','input','condition','text','end']);
+ assert.deepEqual(no.steps.map(s=>s.type),['start','input','condition','text','end']);
+ assert.match(yes.steps[2].result,/SIM/);assert.match(no.steps[2].result,/NÃO/);
+ assert.ok(yes.events.some(e=>e.text==='Ótimo! Vou apresentar nossos serviços.'));
+ assert.ok(!yes.events.some(e=>e.text==='Sem problemas! Estamos à disposição.'));
+ assert.ok(no.events.some(e=>e.text==='Sem problemas! Estamos à disposição.'));
+ assert.ok(!no.events.some(e=>e.text==='Ótimo! Vou apresentar nossos serviços.'));
+});
