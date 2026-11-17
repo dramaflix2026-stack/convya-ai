@@ -24,6 +24,9 @@ test('start server: client virtual tab is visible and browser script is syntacti
  assert.match(html,/id="resetDemo"/);
  assert.match(html,/api\/virtual-client\/chat/);
  assert.match(html,/Simulação guiada/);
+ assert.match(html,/id="demoWait"/);
+ assert.match(html,/id="demoFlow"/);
+ assert.match(html,/showVirtualFlow\(result\.trace\)/);
  const scripts=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
  assert.equal(scripts.length,1);
  assert.doesNotThrow(()=>new Script(scripts[0][1],{filename:'whatsapp-inline.js'}));
@@ -50,6 +53,39 @@ test('different example questions get coherent replies without fake prices',asyn
  const human=await (await post({text:'Quero falar com um humano',history:[]})).json();
  assert.match(human.reply,/equipe|pessoa|simulando/i);
 });
+test('complete virtual flow traces message, simulated wait, intent and response without WhatsApp',async()=>{
+ const res=await post({text:'Quero criar um site para meu negócio',history:[],waitSeconds:60});
+ assert.equal(res.status,200);
+ const data=await res.json();
+ assert.equal(data.action,'continue');
+ assert.equal(data.whatsappSent,false);
+ assert.deepEqual(data.trace.map(x=>x.id),['inbound','wait','condition','reply','send']);
+ assert.match(data.trace[1].result,/1 minuto simulado/i);
+ assert.equal(data.trace[2].result,'Atendimento normal');
+});
+test('price and human requests follow the same handoff condition as live agent',async()=>{
+ const res=await post({text:'Quanto custa um site?',history:[],waitSeconds:0});
+ const data=await res.json();
+ assert.equal(data.intent,'handoff');
+ assert.equal(data.action,'human');
+ assert.equal(data.engine,'scripted');
+ assert.deepEqual(data.trace.map(x=>x.id),['inbound','wait','condition','action','send']);
+ assert.match(data.trace[3].result,/humano/i);
+ assert.equal(data.whatsappSent,false);
+});
+test('stop requests simulate opt-out without sending a real message',async()=>{
+ const res=await post({text:'Não quero, parar',history:[]});
+ const data=await res.json();
+ assert.equal(data.intent,'opt_out');
+ assert.equal(data.action,'paused');
+ assert.match(data.reply,/pausaria|pausada/i);
+ assert.equal(data.whatsappSent,false);
+});
+test('flow simulation enforces allowed timing values',async()=>{
+ const res=await post({text:'Oi',history:[],waitSeconds:7200});
+ assert.equal(res.status,422);
+});
+
 test('virtual client refuses invalid and overly long payloads',async()=>{
  const bad=await post({text:'',history:[]});
  assert.equal(bad.status,422);
