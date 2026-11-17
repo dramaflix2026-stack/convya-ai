@@ -59,8 +59,7 @@ function setMode(mode){
   session.lastError=null;
   return publicState();
 }
-const HANDOFF=/\b(humano|atendente|pessoa real|falar com algu[eé]m|contrato|pagamento|pre[cç]o|pre[cç]os|valores?|or[cç]amento|quanto custa|cart[aã]o|pix|boleto|comprar agora|fechar (neg[oó]cio|venda))\b/i;
-const OPT_OUT=/\b(pare|parar|n[aã]o quero|n[aã]o me (chame|mande)|cancelar conversa|stop)\b/i;
+const {HANDOFF,OPT_OUT}=require('./flow-policy');
 function baseInstructions(context){
   return [
     'Você é o Vendedor IA da PageNova em uma conversa de HOMOLOGAÇÃO com um destinatário que optou por participar.',
