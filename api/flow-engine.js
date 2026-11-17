@@ -104,47 +104,68 @@
   if(loop)errors.push('O fluxo contém um ciclo. Conecte sem voltas nesta versão.');
   return [...new Set(errors)];
  }
- function simulate(flow,customerText,options={}){
-  const source=cleanFlow(flow);
-  const errors=validate(source);
-  if(errors.length)return {ok:false,errors,events:[],steps:[]};
-  const data=toText(customerText,850);
+ function advance(flow,oldSession=null,customerText=''){
+  const source=cleanFlow(flow),errors=validate(source);
+  if(errors.length)return {ok:false,errors,events:[],steps:[],session:null};
   const byId=new Map(source.nodes.map(n=>[n.id,n]));
-  let cursor=source.nodes.find(n=>n.type==='start'),steps=[],events=[],human=false;
-  for(let count=0;cursor&&count<=MAX_NODES;count++){
-   let n=cursor,kind=n.type,detail='',next='out',c=n.config||{};
+  const starts=source.nodes.find(n=>n.type==='start');
+  let session=oldSession&&typeof oldSession==='object'&&oldSession.flowId===source.id?
+   {flowId:source.id,cursor:oldSession.cursor,lastInput:String(oldSession.lastInput||'').slice(0,850),
+    events:Array.isArray(oldSession.events)?oldSession.events.slice(-150):[],
+    steps:Array.isArray(oldSession.steps)?oldSession.steps.slice(-150):[],
+    ended:!!oldSession.ended,human:!!oldSession.human}:{
+      flowId:source.id,cursor:starts.id,lastInput:'',events:[],steps:[],ended:false,human:false
+    };
+  if(session.ended||session.human)return {ok:true,ended:session.ended,human:session.human,waiting:false,events:session.events,steps:session.steps,session};
+  let text=toText(customerText,850),consumed=false,waiting=false;
+  for(let count=0;session.cursor&&count<=MAX_NODES;count++){
+   const n=byId.get(session.cursor);
+   if(!n){session.ended=true;break}
+   const kind=n.type,c=n.config||{};
+   let detail='',port='out',finish=false;
    if(kind==='start')detail='Fluxo iniciado';
    if(kind==='input'){
-    detail=data?'Cliente enviou: '+data:'Aguardando mensagem do cliente';
-    if(!data){steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});return {ok:true,waiting:true,events,steps,ended:false}}
-    if(c.match&&!data.toLowerCase().includes(String(c.match).toLowerCase())){
-      detail='Aguardando mensagem com: '+c.match;
-      steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});
-      return {ok:true,waiting:true,events,steps,ended:false}
+    const matches=!c.match||text.toLowerCase().includes(String(c.match).toLowerCase());
+    if(!text||consumed||!matches){
+      waiting=true;detail=c.match?'Aguardando mensagem contendo "'+c.match+'"':'Aguardando mensagem do cliente';
+      if(!session.steps.length||session.steps.at(-1)?.id!==n.id||session.steps.at(-1)?.result!==detail)
+       session.steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});
+      break;
     }
-    events.push({direction:'in',type:'text',text:data});
+    consumed=true;session.lastInput=text;
+    detail='Cliente enviou: '+text;
+    session.events.push({direction:'in',type:'text',text});
    }
    if(kind==='wait')detail='Espera simulada: '+c.duration+' '+c.unit+' (tempo acelerado)';
-   if(kind==='text'){detail='Texto exibido';events.push({direction:'out',type:'text',text:toText(c.text,1200)})}
+   if(kind==='text'){detail='Texto exibido';session.events.push({direction:'out',type:'text',text:toText(c.text,1200)})}
    if(['image','audio','video','link'].includes(kind)){
-    detail='Mídia/link exibido somente na simulação';events.push({direction:'out',type:kind,url:toText(c.url,1200),text:toText(c.caption,120)});
+    detail='Mídia/link exibido somente na simulação';
+    session.events.push({direction:'out',type:kind,url:toText(c.url,1200),text:toText(c.caption,120)});
    }
    if(kind==='condition'){
-    const result=data.toLowerCase().includes(String(c.contains).toLowerCase())?'yes':'no';
-    next=result;detail='Contém "'+c.contains+'"? '+(result==='yes'?'SIM':'NÃO');
+    const yes=session.lastInput.toLowerCase().includes(String(c.contains).toLowerCase());
+    port=yes?'yes':'no';detail='Contém "'+c.contains+'"? '+(yes?'SIM':'NÃO');
    }
    if(kind==='ai'){
     detail='IA opcional (execução ainda não vinculada neste MVP)';
-    events.push({direction:'note',type:'note',text:'Bloco IA configurado. Para usá-lo em produção, será necessário ativar a integração e testar o prompt.'});
+    session.events.push({direction:'note',type:'note',text:'Bloco IA configurado. Integração ainda não habilitada no motor real.'});
    }
-   if(kind==='human'){detail='Atendimento humano simulado; ninguém foi avisado';human=true;
-    events.push({direction:'note',type:'note',text:'Transferência simulada. Nenhum atendente ou CRM foi acionado.'});
+   if(kind==='human'){
+    detail='Atendimento humano simulado; ninguém foi avisado';finish=true;session.human=true;
+    session.events.push({direction:'note',type:'note',text:'Transferência simulada. Nenhum atendente ou CRM foi acionado.'});
    }
-   if(kind==='end')detail='Fluxo encerrado';
-   steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});
-   cursor=n.next?.[next]?byId.get(n.next[next]):null;
+   if(kind==='end'){detail='Fluxo encerrado';finish=true;session.ended=true}
+   session.steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});
+   session.cursor=finish?null:n.next?.[port]||null;
+   if(!session.cursor&&!finish)session.ended=true;
   }
-  return {ok:true,waiting:false,ended:!human,human,events,steps};
+  return {ok:true,waiting,ended:session.ended,human:session.human,
+   events:session.events,steps:session.steps,session};
  }
- return {TYPES,MAX_NODES,create,node,cleanFlow,connect,validate,simulate,validUrl};
+ function simulate(flow,customerText,options={}){
+  const result=advance(flow,null,customerText);
+  const {session,...publicResult}=result;
+  return publicResult;
+ }
+ return {TYPES,MAX_NODES,create,node,cleanFlow,connect,validate,advance,simulate,validUrl};
 });
