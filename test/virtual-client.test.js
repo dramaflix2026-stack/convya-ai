@@ -81,6 +81,47 @@ test('prospect asking for a preview is not given a fabricated approved site link
  assert.doesNotMatch(d.reply,/https?:\/\/|site pronto/i);
  assert.match(d.reply,/prévia|aprovado/i);
 });
+test('customer asks to see the actual site: no fake preview link or promised callback',async()=>{
+ const response=await post({text:'Eu quero ver o site',scenario:'hamburgueria',history:[]});
+ assert.equal(response.status,200);
+ const result=await response.json();
+ assert.equal(result.action,'continue');
+ assert.equal(result.engine,'scripted');
+ assert.equal(result.whatsappSent,false);
+ assert.match(result.reply,/prévia real/i);
+ assert.match(result.reply,/não há link/i);
+ assert.doesNotMatch(result.reply,/https?:\/\/|vai entrar em contato|encaminhei/i);
+});
+test('after customer accepts preview outline, seller gives concrete homepage structure',async()=>{
+ const first=await (await post({text:'Quero ver o site',scenario:'hamburgueria',history:[]})).json();
+ const next=await post({text:'sim',scenario:'hamburgueria',history:[
+  {role:'seller',text:'Olá! Posso oferecer um site?'},{role:'customer',text:'Quero ver o site'},
+  {role:'seller',text:first.reply}
+ ]});
+ assert.equal(next.status,200);
+ const answer=await next.json();
+ assert.match(answer.reply,/seis hambúrgueres/i);
+ assert.match(answer.reply,/WhatsApp/i);
+ assert.match(answer.reply,/não um site publicado/i);
+ assert.doesNotMatch(answer.reply,/entrar em contato|https?:\/\//i);
+});
+test('single-letter negative reply ends simulated sales conversation',async()=>{
+ const response=await post({text:'n',scenario:'hamburgueria',history:[]});
+ const data=await response.json();
+ assert.equal(data.action,'paused');
+ assert.equal(data.intent,'opt_out');
+ assert.match(data.reply,/pausada/i);
+ assert.equal(data.whatsappSent,false);
+});
+test('multiple approvals result in concrete offer rather than repeatedly asking permission',()=>{
+ const history=[
+  {role:'seller',text:'Posso explicar a proposta?'},{role:'customer',text:'pode'},
+  {role:'seller',text:'Uma página com cardápio visual, quer saber mais?'}
+ ];
+ const reply=virtual.scriptedReply('pode',history);
+ assert.match(reply,/cardápio|PageNova|página/i);
+ assert.doesNotMatch(reply,/posso continuar|posso explicar|posso ajudar/i);
+});
 test('prospect not interested is respected and triggers opt-out',async()=>{
  const r=await post({text:'Não tenho interesse, obrigado.',scenario:'clinica',history:[]});
  const d=await r.json();
@@ -174,6 +215,30 @@ test('optional AI uses provider only after explicit opt-in and falls back safely
   assert.equal(answer.whatsappSent,false);
   assert.match(answer.reply,/site ajuda/);
   assert.equal(called,1);
+ }finally{
+  global.fetch=realFetch;
+  delete process.env.CONVYA_VIRTUAL_AI_ENABLED;
+  delete process.env.OPENAI_API_KEY;
+ }
+});
+test('safeguard replaces AI claims of an unscheduled real-world callback',async()=>{
+ process.env.OPENAI_API_KEY='test-not-a-real-openai-key';
+ process.env.CONVYA_VIRTUAL_AI_ENABLED='true';
+ global.fetch=async(input,options)=>{
+  if(String(input).startsWith(url))return realFetch(input,options);
+  assert.equal(String(input),'https://api.openai.com/v1/responses');
+  return new Response(JSON.stringify({output:[{type:'message',content:[
+   {type:'output_text',text:'Ótimo, vou encaminhar seu interesse e a equipe vai entrar em contato.'}
+  ]}]}),{status:200,headers:{'Content-Type':'application/json'}});
+ };
+ try{
+  const response=await post({text:'Gostaria de saber o próximo passo',scenario:'hamburgueria',history:[]});
+  assert.equal(response.status,200);
+  const result=await response.json();
+  assert.equal(result.engine,'scripted');
+  assert.equal(result.whatsappSent,false);
+  assert.match(result.reply,/não encaminho|não registrei/i);
+  assert.doesNotMatch(result.reply,/vou encaminhar|a equipe vai entrar em contato/i);
  }finally{
   global.fetch=realFetch;
   delete process.env.CONVYA_VIRTUAL_AI_ENABLED;
