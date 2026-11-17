@@ -1,0 +1,150 @@
+'use strict';
+/* Convya Flow V1: deterministic, locally authored automation; NO WhatsApp sends. */
+(function(root,factory){
+ const api=factory();
+ if(typeof module==='object'&&module.exports)module.exports=api;
+ if(root)root.ConvyaFlow=api;
+})(typeof globalThis==='object'?globalThis:this,function(){
+ const TYPES={
+  start:{label:'Início',icon:'▶',color:'#18a957'},
+  input:{label:'Aguardar mensagem',icon:'◉',color:'#548de8'},
+  wait:{label:'Esperar',icon:'◷',color:'#e3a023'},
+  text:{label:'Enviar texto',icon:'✉',color:'#8b68d9'},
+  image:{label:'Enviar imagem',icon:'▧',color:'#ce6c9d'},
+  audio:{label:'Enviar áudio',icon:'♫',color:'#c67f4d'},
+  video:{label:'Enviar vídeo',icon:'▣',color:'#5490a5'},
+  link:{label:'Enviar site / link',icon:'↗',color:'#27a5a1'},
+  condition:{label:'Condição SIM/NÃO',icon:'◇',color:'#e29b4c'},
+  ai:{label:'IA opcional',icon:'✦',color:'#8a76d5'},
+  human:{label:'Transferir humano',icon:'♙',color:'#6595a7'},
+  end:{label:'Encerrar',icon:'■',color:'#75838d'}
+ };
+ const MAX_NODES=50;
+ const id=()=>Math.random().toString(36).slice(2,9)+Date.now().toString(36);
+ const toText=(x,max)=>String(x||'').trim().slice(0,max);
+ const validUrl=u=>{try{const v=new URL(u);return v.protocol==='https:'||v.protocol==='http:'}catch{return false}};
+ const defaultsFor=type=>{
+  if(type==='start')return {title:'Início do atendimento'};
+  if(type==='input')return {placeholder:'Aguardar mensagem do cliente',match:''};
+  if(type==='wait')return {duration:2,unit:'minutos'};
+  if(type==='text')return {text:'Olá! Obrigado pelo contato. Como posso ajudar?'};
+  if(type==='condition')return {contains:'site'};
+  if(type==='end')return {title:'Fim do fluxo'};
+  if(type==='human')return {text:'Conversa encaminhada para atendimento humano (simulado).'};
+  if(type==='ai')return {prompt:'Responda à dúvida do cliente sobre nossos serviços.'};
+  if(type==='link')return {url:'',caption:'Veja nosso site'};
+  if(type==='image'||type==='video'||type==='audio')return {url:'',caption:'Confira este conteúdo'};
+  return {};
+ };
+ function node(type,x,y){if(!TYPES[type])throw Error('Bloco desconhecido');return {id:id(),type,x:Math.round(x),y:Math.round(y),config:defaultsFor(type),next:{}}}
+ function create(title='Meu primeiro fluxo'){
+  const flow={id:id(),name:title,status:'draft',updatedAt:new Date().toISOString(),nodes:[]};
+  let start=node('start',145,65),input=node('input',145,255),wait=node('wait',145,445),message=node('text',145,635),end=node('end',145,825);
+  start.next.out=input.id;input.next.out=wait.id;wait.next.out=message.id;message.next.out=end.id;
+  flow.nodes=[start,input,wait,message,end];
+  return flow;
+ }
+ function cleanNode(n){
+  if(!n||typeof n!=='object'||!TYPES[n.type]||typeof n.id!=='string'||n.id.length>80)throw Error('Bloco inválido');
+  return {id:n.id,type:n.type,x:Math.min(2800,Math.max(0,Number.isFinite(n.x)?Math.round(n.x):100)),
+   y:Math.min(2900,Math.max(0,Number.isFinite(n.y)?Math.round(n.y):100)),
+   config:Object.fromEntries(Object.entries(n.config||{}).filter(([k])=>['title','placeholder','match','duration','unit','text','contains','prompt','url','caption'].includes(k)).map(([k,v])=>[k,typeof v==='number'?v:toText(v,1200)])),
+   next:Object.fromEntries(Object.entries(n.next||{}).filter(([k,v])=>['out','yes','no'].includes(k)&&typeof v==='string').map(([k,v])=>[k,v]))};
+ }
+ function cleanFlow(flow){
+  if(!flow||typeof flow!=='object'||!Array.isArray(flow.nodes)||flow.nodes.length>MAX_NODES)throw Error('Fluxo inválido ou muito grande');
+  const nodes=flow.nodes.map(cleanNode);
+  if(new Set(nodes.map(n=>n.id)).size!==nodes.length)throw Error('Há IDs duplicados no fluxo');
+  return {id:toText(flow.id,80)||id(),name:toText(flow.name,90)||'Fluxo sem nome',
+   status:['draft','published','paused'].includes(flow.status)?flow.status:'draft',
+   updatedAt:flow.updatedAt||new Date().toISOString(),nodes};
+ }
+ function connect(flow,sourceId,port,targetId){
+  const source=flow.nodes.find(n=>n.id===sourceId),target=flow.nodes.find(n=>n.id===targetId);
+  if(!source||!target||source.id===target.id)throw Error('Selecione blocos diferentes');
+  if(!['out','yes','no'].includes(port))throw Error('Porta inválida');
+  if(source.type==='end'||source.type==='human')throw Error('Este bloco finaliza o atendimento');
+  if(source.type==='condition'?(port==='out'):(port!=='out'))throw Error('Saída inválida para este bloco');
+  if(target.type==='start')throw Error('Não é possível conectar ao início');
+  source.next[port]=target.id;
+  return flow;
+ }
+ function validate(flow){
+  let errors=[];let map=new Map(flow.nodes.map(n=>[n.id,n]));
+  const starts=flow.nodes.filter(n=>n.type==='start');
+  if(starts.length!==1)errors.push('É necessário exatamente um bloco Início.');
+  if(!flow.nodes.some(n=>n.type==='end'||n.type==='human'))errors.push('Adicione ao menos um bloco Encerrar ou Transferir humano.');
+  if(flow.nodes.length>MAX_NODES)errors.push('Limite de 50 blocos.');
+  for(const n of flow.nodes){
+   const ports=n.type==='condition'?['yes','no']:['end','human'].includes(n.type)?[]:['out'];
+   for(const port of ports){if(!n.next?.[port])errors.push('Conecte a saída '+(port==='out'?'principal':port.toUpperCase())+' de '+TYPES[n.type].label+'.');}
+   for(const [port,target] of Object.entries(n.next||{})){
+    if(!['out','yes','no'].includes(port)||!map.has(target))errors.push('Conexão quebrada em '+TYPES[n.type].label+'.');
+   }
+   if(n.type==='wait'){
+    const t=Number(n.config.duration);
+    if(!Number.isFinite(t)||t<0||t>10080||!['segundos','minutos','horas','dias'].includes(n.config.unit))errors.push('Espera inválida; use 0–10080 e unidade de tempo.');
+   }
+   if(n.type==='text'&&!toText(n.config.text,1200))errors.push('Preencha o bloco Enviar texto.');
+   if(n.type==='condition'&&!toText(n.config.contains,120))errors.push('Defina a palavra da condição SIM/NÃO.');
+   if(['image','video','audio','link'].includes(n.type)&&!validUrl(n.config.url))errors.push('Informe URL http(s) válida em '+TYPES[n.type].label+'.');
+  }
+  // Follow only linked paths. Orphan blocks must be connected before publishing.
+  const walked=new Set(),stack=starts.length?[starts[0].id]:[];
+  while(stack.length){const current=stack.pop();if(walked.has(current))continue;walked.add(current);
+   const n=map.get(current);if(n)for(const next of Object.values(n.next||{}))if(map.has(next))stack.push(next);
+  }
+  for(const n of flow.nodes)if(!walked.has(n.id))errors.push('Bloco desconectado: '+TYPES[n.type].label+'.');
+  // A cycle could never terminate in a simple MVP; disallow cycles.
+  const active=new Set(),finished=new Set();let loop=false;
+  function dfs(nid){if(active.has(nid)){loop=true;return}if(finished.has(nid))return;active.add(nid);
+   const n=map.get(nid);if(n)for(const dest of Object.values(n.next||{}))if(map.has(dest))dfs(dest);
+   active.delete(nid);finished.add(nid)}
+  if(starts[0])dfs(starts[0].id);
+  if(loop)errors.push('O fluxo contém um ciclo. Conecte sem voltas nesta versão.');
+  return [...new Set(errors)];
+ }
+ function simulate(flow,customerText,options={}){
+  const source=cleanFlow(flow);
+  const errors=validate(source);
+  if(errors.length)return {ok:false,errors,events:[],steps:[]};
+  const data=toText(customerText,850);
+  const byId=new Map(source.nodes.map(n=>[n.id,n]));
+  let cursor=source.nodes.find(n=>n.type==='start'),steps=[],events=[],human=false;
+  for(let count=0;cursor&&count<=MAX_NODES;count++){
+   let n=cursor,kind=n.type,detail='',next='out',c=n.config||{};
+   if(kind==='start')detail='Fluxo iniciado';
+   if(kind==='input'){
+    detail=data?'Cliente enviou: '+data:'Aguardando mensagem do cliente';
+    if(!data){steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});return {ok:true,waiting:true,events,steps,ended:false}}
+    if(c.match&&!data.toLowerCase().includes(String(c.match).toLowerCase())){
+      detail='Aguardando mensagem com: '+c.match;
+      steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});
+      return {ok:true,waiting:true,events,steps,ended:false}
+    }
+    events.push({direction:'in',type:'text',text:data});
+   }
+   if(kind==='wait')detail='Espera simulada: '+c.duration+' '+c.unit+' (tempo acelerado)';
+   if(kind==='text'){detail='Texto exibido';events.push({direction:'out',type:'text',text:toText(c.text,1200)})}
+   if(['image','audio','video','link'].includes(kind)){
+    detail='Mídia/link exibido somente na simulação';events.push({direction:'out',type:kind,url:toText(c.url,1200),text:toText(c.caption,120)});
+   }
+   if(kind==='condition'){
+    const result=data.toLowerCase().includes(String(c.contains).toLowerCase())?'yes':'no';
+    next=result;detail='Contém "'+c.contains+'"? '+(result==='yes'?'SIM':'NÃO');
+   }
+   if(kind==='ai'){
+    detail='IA opcional (execução ainda não vinculada neste MVP)';
+    events.push({direction:'note',type:'note',text:'Bloco IA configurado. Para usá-lo em produção, será necessário ativar a integração e testar o prompt.'});
+   }
+   if(kind==='human'){detail='Atendimento humano simulado; ninguém foi avisado';human=true;
+    events.push({direction:'note',type:'note',text:'Transferência simulada. Nenhum atendente ou CRM foi acionado.'});
+   }
+   if(kind==='end')detail='Fluxo encerrado';
+   steps.push({id:n.id,type:kind,label:TYPES[kind].label,result:detail});
+   cursor=n.next?.[next]?byId.get(n.next[next]):null;
+  }
+  return {ok:true,waiting:false,ended:!human,human,events,steps};
+ }
+ return {TYPES,MAX_NODES,create,node,cleanFlow,connect,validate,simulate,validUrl};
+});
