@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7faf8"><title>Montar Fluxo | Convya AI</title>
+<style>
+:root{font:14px Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Arial,sans-serif;--bg:#f5f8f5;--paper:#fff;--ink:#183024;--muted:#667c6c;--line:#dce9df;--green:#108e47;--deep:#076e34;--soft:#eaf8ee;--danger:#bb4349;--shadow:0 10px 38px #21482a0b}
+*{box-sizing:border-box}body{margin:0;color:var(--ink);background:var(--bg)}button,input,select,textarea{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}a{color:var(--deep);text-decoration:none}a:hover{text-decoration:underline}input,select,textarea{min-width:0}
+.app{display:grid;grid-template-columns:220px minmax(0,1fr);min-height:100vh}.side{background:#fff;border-right:1px solid var(--line);padding:26px 15px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:12px}
+.logo{font-size:24px;font-weight:850;letter-spacing:-1.3px;display:flex;align-items:center;gap:9px;margin:1px 10px 26px}.logo b{width:34px;height:34px;display:grid;place-items:center;border-radius:11px;background:#ddf8e5;color:var(--green);font-size:21px}
+.nav{display:grid;gap:5px}.nav a{padding:13px;border-radius:11px;display:flex;align-items:center;gap:10px;font-weight:680;color:#607364}.nav a:hover,.nav a.active{background:var(--soft);color:var(--deep);text-decoration:none}.nav svg{width:18px;height:18px}.sideBottom{margin-top:auto;border:1px solid var(--line);border-radius:13px;padding:14px;background:#fbfdfb}.sideBottom strong{display:block;margin-bottom:5px}.tiny{font-size:11px;color:var(--muted);line-height:1.55}
+main{padding:29px clamp(13px,2.5vw,38px) 60px;max-width:1950px;width:100%;min-width:0;margin:0 auto}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:23px}.eyebrow{color:var(--deep);font-size:11px;font-weight:800;letter-spacing:.6px}.top h1{font-size:clamp(26px,3vw,37px);letter-spacing:-1.3px;margin:6px 0 4px}.top h1 span{color:var(--green)}.sub{font-size:13px;color:var(--muted);margin:0;line-height:1.55}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.btn{background:#fff;color:var(--deep);border:1px solid #bcdcc7;border-radius:10px;min-height:40px;padding:10px 13px;font-weight:750}.btn:hover:not(:disabled){background:var(--soft)}.btn.primary{background:linear-gradient(125deg,#16ae55,#077438);border-color:#0c8240;color:#fff}.btn.dark{background:#173d28;border-color:#173d28;color:#fff}.btn.danger{color:var(--danger);border-color:#f0c9c9}.btn.small{font-size:11px;min-height:30px;padding:6px 9px}.badge{display:inline-flex;gap:6px;border:1px solid #d6e6d9;background:#f3faf5;color:#53715c;border-radius:25px;padding:7px 10px;font-size:11px;font-weight:700}.badge.published{background:#e7f9ea;color:#16733a}.badge.paused{background:#fff3e8;border-color:#ffe3c0;color:#905a28}
+.notice{background:#fff9ed;border:1px solid #f0dfa8;border-radius:12px;padding:12px 15px;margin:0 0 17px;color:#75571f;line-height:1.55;font-size:12px}
+.studio{display:grid;grid-template-columns:192px minmax(450px,1fr) 305px;gap:13px;align-items:stretch}
+.panel{background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:17px;min-width:0}.panelHead{padding:17px 16px 13px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:center}.panelHead h2,.panelHead h3{font-size:14px;margin:0;letter-spacing:-.2px}.panelBody{padding:14px}.label{display:block;font-size:11px;font-weight:780;color:#42604b;margin:13px 0 6px}.field{width:100%;border:1px solid #cedfd3;background:#fcfefd;border-radius:10px;color:var(--ink);padding:10px 11px;outline:0}.field:focus{border-color:var(--green);box-shadow:0 0 0 3px #d7f2df}textarea.field{min-height:85px;resize:vertical}.help{color:var(--muted);font-size:11px;line-height:1.5;margin-top:7px}
+.catalog{display:grid;gap:6px}.pick{display:flex;align-items:center;gap:8px;text-align:left;padding:11px 10px;border-radius:11px;border:1px solid #e4eee6;background:#fbfefc;color:var(--ink);font-weight:660;width:100%}.pick:hover{border-color:#a8d9b7;background:var(--soft)}.pickIcon{border-radius:8px;display:grid;place-items:center;color:#fff;min-width:29px;height:29px;font-size:15px}.pick small{display:block;color:#82968a;font-size:10px;font-weight:500;margin-top:2px}
+.boardWrap{position:relative;height:775px;overflow:auto;border-radius:0 0 17px 17px;background:#f8fbf8;touch-action:pan-x pan-y}.board{width:1650px;height:1450px;position:relative;background-image:radial-gradient(#cbded0 1.1px,transparent 1.1px);background-size:23px 23px}.edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}.edge{fill:none;stroke:#8bbba0;stroke-width:2.4;stroke-linecap:round}.edge.yes{stroke:#2bac61}.edge.no{stroke:#d9a65c}.edgeText{font:700 11px ui-sans-serif,system-ui;fill:#51755e}.node{position:absolute;width:236px;min-height:129px;border:1px solid #d4e4d8;background:white;border-radius:14px;box-shadow:0 9px 28px #18452616;user-select:none;overflow:visible}.node.selected{border:2px solid #22b35a;box-shadow:0 0 0 4px #c8f2d4,0 9px 28px #18452618}.node.visited{background:#f2fff5;border-color:#22ae56}.nodeTop{display:flex;gap:10px;align-items:center;padding:13px 13px 8px;cursor:grab;touch-action:none}.nodeTop:active{cursor:grabbing}.nodeIcon{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;color:white;font-size:16px;flex-shrink:0}.nodeName{font-size:12px;font-weight:820;line-height:1.4}.nodeContent{font-size:11px;color:#617468;line-height:1.4;padding:2px 15px 21px;max-height:54px;overflow:hidden;overflow-wrap:anywhere}.port{position:absolute;z-index:2;border:2px solid white;box-shadow:0 0 0 1px #9acaab;width:18px;height:18px;background:#23aa59;border-radius:50%;padding:0}.port:hover,.port.pending{background:#ffc24b;box-shadow:0 0 0 4px #fff0bc}.port.in{left:calc(50% - 9px);top:-10px;background:#fff;border:2px solid #2da65e}.port.out{bottom:-9px;left:calc(50% - 9px)}.port.yes{left:22%;background:#15a957}.port.no{left:74%;background:#dba34e}.portCaption{position:absolute;bottom:11px;font-size:10px;font-weight:700;color:#638470}.portCaption.yes{left:14%}.portCaption.no{right:13%}
+.canvasFoot{padding:11px 15px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:9px}.canvasFoot .help{margin:0}.statusMsg{color:var(--deep);font-size:12px;min-height:18px;line-height:1.4}
+.inspectorEmpty{text-align:center;padding:40px 14px;color:var(--muted)}.inspectorEmpty span{font-size:32px;display:block;margin-bottom:9px}.inspectorBtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:17px}.connectRow{display:flex;gap:7px;align-items:center}.connectRow select{flex:1}.statusLine{display:flex;gap:10px;align-items:center;margin-top:11px}
+.testing{margin-top:15px}.testGrid{display:grid;grid-template-columns:minmax(270px,.85fr) minmax(0,1.15fr);gap:16px;padding:17px}.chat{border:1px solid var(--line);border-radius:12px;background:linear-gradient(140deg,#effaf1,#fff);min-height:230px;max-height:410px;overflow:auto;padding:14px}.bubble{background:#eaf0eb;border:1px solid #d9e6dd;margin:7px 0;padding:11px 12px;border-radius:13px;max-width:85%;width:max-content;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}.bubble.out{margin-left:auto;background:#d8f5df;border-color:#bee7c7}.bubble.note{max-width:100%;background:#fff9e8;border-color:#f5e1ad;color:#735c25}.bubble img{max-width:100%;width:210px;border-radius:8px;display:block;margin-top:7px}.bubble video,.bubble audio{max-width:100%;width:245px;display:block;margin-top:7px}.testSteps{display:grid;gap:8px;align-content:start;max-height:410px;overflow:auto}.testStep{padding:11px 13px;border:1px solid var(--line);background:#fcfffd;border-radius:10px;font-size:11px}.testStep b{display:block;color:#267647;margin-bottom:5px}.testStep span{color:var(--muted)}.empty{color:var(--muted);font-size:12px;text-align:center;padding:42px 14px}.errorList{background:#fff3f3;border:1px solid #f0cece;color:#9a3333;border-radius:10px;padding:13px;margin-top:11px;font-size:12px;line-height:1.7}.errorList ul{margin:7px 0 0;padding-left:19px}.bottomLine{text-align:center;color:#8b9e91;font-size:11px;margin-top:18px}
+@media(max-width:1450px){.studio{grid-template-columns:165px minmax(350px,1fr) 280px}.panelBody{padding:12px}}
+@media(max-width:1140px){.studio{grid-template-columns:160px minmax(0,1fr)}.inspector{grid-column:1/-1}.boardWrap{height:660px}}
+@media(max-width:800px){.app{display:block}.side{position:relative;height:auto;display:flex;flex-direction:row;align-items:center;padding:12px 13px}.logo{margin:0;font-size:21px}.side .nav{display:flex;overflow:auto;flex:1;justify-content:flex-end}.side .nav a{white-space:nowrap;padding:9px}.sideBottom{display:none}main{padding:19px 12px 40px}.studio{grid-template-columns:1fr}.catalog{display:flex;gap:7px;overflow-x:auto;scroll-snap-type:x proximity}.pick{min-width:155px}.boardWrap{height:560px}.testGrid{grid-template-columns:1fr}.panelHead{flex-wrap:wrap}.top{align-items:flex-start}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+ <a class="logo" href="/" aria-label="Convya AI"><b>◉</b> Convya</a>
+ <nav class="nav" aria-label="Navegação">
+  <a class="active" href="/fluxos.html"><span>⤳</span> Montar Fluxo</a>
+  <a href="/whatsapp.html"><span>☏</span> WhatsApp</a>
+  <a href="/whatsapp.html#conversas"><span>✦</span> Cliente Virtual</a>
+  <a href="/"><span>▦</span> CRM</a>
+ </nav>
+ <div class="sideBottom"><strong>Modo de homologação</strong><div class="tiny">Fluxos guardados neste navegador. Nenhuma automação envia mensagens ao WhatsApp.</div></div>
+</aside>
+<main>
+ <div class="top"><div><div class="eyebrow">CONVYA AI • CONSTRUTOR VISUAL</div><h1>Monte seu <span>atendimento.</span></h1><p class="sub">Arraste os blocos, conecte as saídas e teste o atendimento antes de ativar qualquer automação.</p></div>
+ <div class="actions">
+  <span id="flowStatus" class="badge">Rascunho</span>
+  <button class="btn" id="saveBtn">Salvar rascunho</button>
+  <button class="btn dark" id="testBtn">▶ Testar fluxo</button>
+  <button class="btn primary" id="publishBtn">Publicar no simulador</button>
+  <button class="btn danger" id="pauseBtn">Pausar</button>
+ </div></div>
+ <div class="notice"><strong>Ambiente seguro:</strong> “Publicar” disponibiliza o fluxo somente para este simulador local. Não conecta a automação ao WhatsApp e não consome tokens. Os blocos de mídia aceitam URLs HTTP(S); uploads e envio real serão integrados em uma etapa posterior.</div>
+ <div class="actions" style="margin-bottom:13px">
+  <select id="flowSelect" class="field" aria-label="Selecionar fluxo" style="max-width:260px"></select>
+  <button class="btn" id="newBtn">+ Novo fluxo</button>
+  <button class="btn" id="duplicateBtn">Duplicar</button>
+  <button class="btn" id="exportBtn">Exportar JSON</button>
+  <button class="btn" id="importBtn">Importar JSON</button><input hidden id="fileInput" type="file" accept="application/json,.json">
+  <button class="btn danger" id="deleteBtn">Excluir fluxo</button>
+  <span id="saveStatus" class="statusMsg" role="status" aria-live="polite"></span>
+ </div>
+ <div class="studio">
+  <section class="panel palette" aria-label="Biblioteca de blocos">
+   <div class="panelHead"><h2>Biblioteca de blocos</h2><span class="badge">12</span></div>
+   <div class="panelBody"><p class="help" style="margin:0 0 12px">Arraste para a área central ou clique para adicionar.</p><div id="catalog" class="catalog"></div></div>
+  </section>
+  <section class="panel" aria-label="Fluxo visual">
+   <div class="panelHead"><h2 id="boardName">Meu primeiro fluxo</h2><button class="btn small" id="renameBtn">✎ Renomear</button></div>
+   <div id="boardWrap" class="boardWrap">
+    <div id="board" class="board"><svg id="edges" class="edges" viewBox="0 0 1650 1450" xmlns="http://www.w3.org/2000/svg"></svg><div id="nodes"></div></div>
+   </div>
+   <div class="canvasFoot"><p class="help">Clique na saída ● e depois na entrada ◯ do próximo bloco. Arraste o cabeçalho para mover.</p><button class="btn small" id="centerBtn">Centralizar</button></div>
+  </section>
+  <section class="panel inspector" aria-label="Configurações do bloco">
+   <div class="panelHead"><h2>Editar bloco</h2><span class="tiny">Configurações</span></div>
+   <div id="inspectorBody" class="panelBody"><div class="inspectorEmpty"><span>▧</span>Selecione um bloco para editar</div></div>
+  </section>
+ </div>
+ <section class="panel testing" id="simulador">
+  <div class="panelHead"><div><h2>▶ Testar Fluxo · Cliente Virtual</h2><p class="help" style="margin:6px 0 0">Simule mensagens de cliente, esperas e condições. Tudo executado localmente.</p></div><span class="badge">Sem envio real</span></div>
+  <div class="testGrid">
+   <div><label class="label" for="customerInput">Mensagem do cliente</label><textarea class="field" id="customerInput" placeholder="Oi, quero saber sobre o site" rows="2">Oi, quero saber sobre o site</textarea>
+    <div class="actions" style="margin-top:10px"><button class="btn primary" id="runBtn">▶ Executar simulação</button><button class="btn" id="resetTestBtn">Limpar teste</button></div>
+    <div id="errors" aria-live="polite"></div><div class="chat" id="testChat"><div class="empty">Clique em Executar simulação para ver as mensagens do fluxo.</div></div>
+   </div>
+   <div><h3 style="margin:6px 0 12px;font-size:13px">Caminho executado</h3><div class="testSteps" id="testSteps"><div class="empty">As etapas aparecerão aqui.</div></div></div>
+  </div>
+ </section>
+ <p class="bottomLine">Convya • MVP de automação visual • Salvamento local do navegador • Ativação real desligada</p>
+</main>
+</div>
+<script src="/flow-engine.js"></script>
+<script>
+(function(){
+'use strict';
+const FLOW=window.ConvyaFlow;
+const KEY='convya-visual-flows-v1';
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const loc=()=>location.pathname;
+let state={flows:[],selectedId:null},selectedNode=null,connecting=null,activeSteps=new Set(),dragging=null,transientMessage='';
+function load(){
+ try{const data=JSON.parse(localStorage.getItem(KEY)||'null');
+  if(data&&Array.isArray(data.flows)&&data.flows.length<=25){
+   state.flows=data.flows.map(FLOW.cleanFlow);state.selectedId=data.selectedId;
+  }
+ }catch{state.flows=[]}
+ if(!state.flows.length){const f=FLOW.create();state.flows=[f];state.selectedId=f.id}
+ if(!state.flows.some(x=>x.id===state.selectedId))state.selectedId=state.flows[0].id;
+}
+const current=()=>state.flows.find(f=>f.id===state.selectedId);
+function persist(){
+ try{localStorage.setItem(KEY,JSON.stringify(state));$('saveStatus').textContent='Salvo neste navegador ✓';return true}
+ catch{$('saveStatus').textContent='Armazenamento cheio. Exporte o JSON para guardar o fluxo.';return false}
+}
+function edit(){
+ const f=current();if(f.status==='published')f.status='draft';
+ f.updatedAt=new Date().toISOString();persist();drawStatus();
+}
+function statusText(s){return s==='published'?'Publicado no simulador':s==='paused'?'Pausado':'Rascunho'}
+function drawStatus(){
+ const f=current(),badge=$('flowStatus');badge.textContent=statusText(f.status);
+ badge.className='badge'+(f.status==='published'?' published':f.status==='paused'?' paused':'');
+ $('pauseBtn').disabled=f.status==='paused';
+ $('publishBtn').disabled=f.status==='published';
+}
+function choiceOptions(value){
+ return '<option value="">Sem conexão</option>'+current().nodes.filter(n=>n.type!=='start').map(n=>'<option value="'+esc(n.id)+'" '+(n.id===value?'selected':'')+'>'+esc(FLOW.TYPES[n.type].label)+' · '+esc(n.id.slice(0,5))+'</option>').join('');
+}
+function nodeSummary(n){
+ const c=n.config||{};
+ if(n.type==='text')return c.text||'Sem texto';
+ if(n.type==='wait')return c.duration+' '+c.unit;
+ if(n.type==='condition')return 'Contém "'+(c.contains||'')+'"?';
+ if(n.type==='input')return c.match?'Aguardar "'+c.match+'"':'Qualquer mensagem do cliente';
+ if(n.type==='ai')return c.prompt||'Prompt não definido';
+ if(['image','audio','video','link'].includes(n.type))return c.caption||c.url||'Configure uma URL';
+ return c.title||c.text||FLOW.TYPES[n.type].label;
+}
+function drawCatalog(){
+ const holder=$('catalog');
+ holder.innerHTML=Object.entries(FLOW.TYPES).map(([type,info])=>
+  '<button type="button" draggable="'+(type!=='start')+'" class="pick" data-kind="'+type+'" title="Adicionar '+esc(info.label)+'"><span class="pickIcon" style="background:'+info.color+'">'+info.icon+'</span><span>'+esc(info.label)+'<small>'+(type==='ai'?'Opcional, ainda simulado':'Adicionar ao fluxo')+'</small></span></button>'
+ ).join('');
+ holder.querySelectorAll('.pick').forEach(b=>{
+  const type=b.dataset.kind;
+  if(type==='start'){b.disabled=true;b.title='O fluxo já tem um início'}
+  b.onclick=()=>addNode(type);
+  b.ondragstart=e=>{e.dataTransfer.setData('text/x-convya-block',type);e.dataTransfer.effectAllowed='copy'};
+ });
+}
+function nodeHTML(n){
+ const info=FLOW.TYPES[n.type],isCondition=n.type==='condition';
+ const ports=n.type==='end'||n.type==='human'?'':isCondition
+  ?'<button type="button" class="port out yes" data-source="'+esc(n.id)+'" data-port="yes" title="Conectar saída SIM"></button><span class="portCaption yes">SIM</span><button type="button" class="port out no" data-source="'+esc(n.id)+'" data-port="no" title="Conectar saída NÃO"></button><span class="portCaption no">NÃO</span>'
+  :'<button type="button" class="port out" data-source="'+esc(n.id)+'" data-port="out" title="Conectar saída"></button>';
+ return '<article class="node'+(selectedNode===n.id?' selected':'')+(activeSteps.has(n.id)?' visited':'')+'" data-id="'+esc(n.id)+'" style="left:'+n.x+'px;top:'+n.y+'px">'
+  +(n.type==='start'?'':'<button type="button" class="port in" data-target="'+esc(n.id)+'" title="Conectar entrada"></button>')
+  +'<div class="nodeTop" data-drag="'+esc(n.id)+'"><span class="nodeIcon" style="background:'+info.color+'">'+info.icon+'</span><span class="nodeName">'+esc(info.label)+'</span></div>'
+  +'<div class="nodeContent">'+esc(nodeSummary(n))+'</div>'+ports+'</article>';
+}
+function drawEdges(){
+ const f=current(),map=new Map(f.nodes.map(n=>[n.id,n])),paths=[];
+ for(const n of f.nodes)for(const [port,target] of Object.entries(n.next||{})){
+  const t=map.get(target);if(!t)continue;
+  const x1=n.x+(port==='yes'?63:port==='no'?181:118),y1=n.y+129;
+  const x2=t.x+118,y2=t.y;
+  const d='M '+x1+' '+y1+' C '+x1+' '+(y1+Math.max(48,Math.abs(y2-y1)/2))+' '+x2+' '+(y2-Math.max(48,Math.abs(y2-y1)/2))+' '+x2+' '+y2;
+  paths.push('<path class="edge'+(port==='yes'?' yes':port==='no'?' no':'')+'" d="'+d+'"/>');
+  if(port==='yes'||port==='no')paths.push('<text class="edgeText" x="'+(x1+7)+'" y="'+(y1+26)+'">'+(port==='yes'?'SIM':'NÃO')+'</text>');
+ }
+ $('edges').innerHTML=paths.join('');
+}
+function drawBoard(){
+ const f=current();
+ $('boardName').textContent=f.name;
+ $('nodes').innerHTML=f.nodes.map(nodeHTML).join('');
+ drawEdges();
+ const board=$('board');
+ board.querySelectorAll('article.node').forEach(n=>{
+  n.onclick=e=>{if(e.target.closest('.port'))return;selectedNode=n.dataset.id;drawBoard();drawInspector()};
+ });
+ board.querySelectorAll('.port.out').forEach(b=>b.onclick=e=>{
+  e.stopPropagation();connecting={from:b.dataset.source,port:b.dataset.port};
+  $('saveStatus').textContent='Agora clique na entrada ◯ do bloco de destino';
+  board.querySelectorAll('.port.out').forEach(x=>x.classList.toggle('pending',x===b));
+ });
+ board.querySelectorAll('.port.in').forEach(b=>b.onclick=e=>{
+  e.stopPropagation();if(!connecting){selectedNode=b.dataset.target;drawBoard();drawInspector();return}
+  try{FLOW.connect(f,connecting.from,connecting.port,b.dataset.target);edit();$('saveStatus').textContent='Blocos conectados ✓'}
+  catch(err){$('saveStatus').textContent=err.message}
+  connecting=null;drawBoard();drawInspector();
+ });
+ board.querySelectorAll('.nodeTop').forEach(b=>b.addEventListener('pointerdown',beginNodeMove));
+}
+function beginNodeMove(e){
+ if(e.button!==0)return;
+ const head=e.currentTarget,n=head.closest('.node'),id=n.dataset.id;
+ const f=current(),node=f.nodes.find(x=>x.id===id);
+ if(!node)return;
+ selectedNode=id;drawInspector();
+ const sx=e.clientX,sy=e.clientY,ox=node.x,oy=node.y;
+ let moved=false;
+ const move=event=>{
+  if(Math.abs(event.clientX-sx)+Math.abs(event.clientY-sy)>3)moved=true;
+  if(!moved)return;
+  node.x=Math.max(0,Math.min(2800,Math.round(ox+event.clientX-sx)));
+  node.y=Math.max(0,Math.min(2800,Math.round(oy+event.clientY-sy)));
+  n.style.left=node.x+'px';n.style.top=node.y+'px';
+  drawEdges();
+ };
+ const stop=()=>{
+  window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',stop);
+  if(moved){edit();drawBoard()}else{selectedNode=id;drawBoard();drawInspector()}
+ };
+ window.addEventListener('pointermove',move);window.addEventListener('pointerup',stop,{once:true});
+}
+function addNode(type,x,y){
+ if(type==='start'){notify('O fluxo já possui um bloco Início.');return}
+ const f=current();
+ if(f.nodes.length>=FLOW.MAX_NODES){notify('Limite de 50 blocos por fluxo.');return}
+ const offset=f.nodes.length*32,px=Number.isFinite(x)?x:480+(offset%440),py=Number.isFinite(y)?y:160+(offset%680);
+ const n=FLOW.node(type,px,py);f.nodes.push(n);selectedNode=n.id;activeSteps.clear();edit();drawBoard();drawInspector();
+ notify('Bloco adicionado. Ligue as saídas e configure-o.');
+}
+function renderConfig(n){
+ const c=n.config||{};
+ const txt=(key,label,placeholder,rows)=>'<label class="label" for="conf-'+key+'">'+label+'</label>'+(rows
+  ?'<textarea class="field" rows="'+rows+'" id="conf-'+key+'" data-key="'+key+'" placeholder="'+esc(placeholder)+'">'+esc(c[key]||'')+'</textarea>'
+  :'<input class="field" id="conf-'+key+'" data-key="'+key+'" value="'+esc(c[key]??'')+'" placeholder="'+esc(placeholder)+'" maxlength="1200">');
+ if(n.type==='start'||n.type==='end')return txt('title','Identificação do bloco','Ex.: Início',1);
+ if(n.type==='input')return txt('placeholder','Descrição da etapa','Aguardar mensagem',2)+txt('match','Texto obrigatório (opcional)','Ex.: oi',1)+'<p class="help">Se definir um texto, o teste aguardará uma mensagem que o contenha.</p>';
+ if(n.type==='wait')return '<label class="label" for="duration">Tempo</label><input class="field" id="duration" data-key="duration" type="number" min="0" max="10080" value="'+esc(c.duration??2)+'">'+
+  '<label class="label" for="unit">Unidade</label><select class="field" data-key="unit" id="unit">'+['segundos','minutos','horas','dias'].map(v=>'<option '+(c.unit===v?'selected':'')+' value="'+v+'">'+v+'</option>').join('')+'</select>'+
+  '<p class="help">O teste avança imediatamente e registra quanto tempo seria esperado.</p>';
+ if(n.type==='condition')return txt('contains','Se a mensagem contiver','Ex.: site',1)+'<p class="help">A mensagem do cliente segue para SIM quando contém esse texto; caso contrário segue para NÃO.</p>';
+ if(n.type==='text'||n.type==='human')return txt('text','Mensagem','Digite sua resposta...',4);
+ if(n.type==='ai')return txt('prompt','Instruções para IA','O que o assistente faria?',4)+'<p class="help">IA opcional: o bloco marca a etapa no simulador, mas ainda não gera respostas reais. Nenhum token é gasto.</p>';
+ if(['image','audio','video','link'].includes(n.type))return txt('url','URL do '+(n.type==='link'?'site':'arquivo')+' (HTTP ou HTTPS)','https://...',2)+txt('caption','Legenda','Escreva uma legenda...',2)+'<p class="help">Use o endereço público do arquivo. Sem upload ou envio ao WhatsApp nesta etapa.</p>';
+ return '';
+}
+function drawInspector(){
+ const n=current().nodes.find(x=>x.id===selectedNode);
+ if(!n){$('inspectorBody').innerHTML='<div class="inspectorEmpty"><span>▧</span>Selecione um bloco para configurar</div>';return}
+ const ports=n.type==='condition'?['yes','no']:['end','human'].includes(n.type)?[]:['out'];
+ const mapPort={out:'Próximo bloco',yes:'Saída SIM',no:'Saída NÃO'};
+ $('inspectorBody').innerHTML='<div class="badge">'+FLOW.TYPES[n.type].icon+' '+esc(FLOW.TYPES[n.type].label)+'</div>'
+  +renderConfig(n)
+  +(ports.length?'<h3 style="font-size:13px;margin:22px 0 8px">Conexões</h3>'+ports.map(port=>
+   '<label class="label" for="edge-'+port+'">'+mapPort[port]+'</label><select class="field edgeSelect" id="edge-'+port+'" data-port="'+port+'">'+choiceOptions(n.next?.[port])+'</select>').join(''):'')
+  +'<div class="inspectorBtns"><button class="btn small" id="applyBtn">✓ Aplicar</button><button class="btn small danger" id="removeBtn" '+(n.type==='start'?'disabled title="O início não pode ser excluído"':'')+'>Excluir bloco</button></div>';
+ $('applyBtn').onclick=()=>{notify('Alterações salvas neste navegador ✓');persist()};
+ $('removeBtn').onclick=()=>removeNode(n.id);
+ $('inspectorBody').querySelectorAll('[data-key]').forEach(field=>{
+  const listener=()=>{
+   if(field.dataset.key==='duration')n.config.duration=field.value===''?0:Number(field.value);
+   else n.config[field.dataset.key]=field.value;
+   activeSteps.clear();edit();drawBoard();
+  };
+  field.addEventListener(field.tagName==='SELECT'?'change':'input',listener);
+ });
+ $('inspectorBody').querySelectorAll('.edgeSelect').forEach(field=>field.onchange=()=>{
+  const destination=field.value,port=field.dataset.port;
+  if(destination){try{FLOW.connect(current(),n.id,port,destination)}
+   catch(err){notify(err.message);drawInspector();return}}
+  else delete n.next[port];
+  edit();drawBoard();notify('Conexão atualizada');
+ });
+}
+function removeNode(nodeId){
+ const f=current(),n=f.nodes.find(x=>x.id===nodeId);if(!n||n.type==='start')return;
+ if(!confirm('Excluir o bloco '+FLOW.TYPES[n.type].label+'?'))return;
+ f.nodes=f.nodes.filter(x=>x.id!==nodeId);
+ for(const x of f.nodes)for(const key of Object.keys(x.next||{}))if(x.next[key]===nodeId)delete x.next[key];
+ selectedNode=f.nodes.find(x=>x.type==='start')?.id||null;
+ activeSteps.clear();edit();drawBoard();drawInspector();
+}
+function renderSelector(){
+ $('flowSelect').innerHTML=state.flows.map(f=>'<option value="'+esc(f.id)+'" '+(f.id===state.selectedId?'selected':'')+'>'+esc(f.name)+'</option>').join('');
+ $('flowSelect').value=state.selectedId;
+}
+function renderAll(){
+ renderSelector();drawStatus();drawCatalog();
+ if(!current().nodes.some(n=>n.id===selectedNode))selectedNode=current().nodes[0]?.id;
+ drawBoard();drawInspector();
+}
+function notify(message){$('saveStatus').textContent=message}
+function newFlow(){
+ if(state.flows.length>=25){notify('Máximo de 25 fluxos neste navegador.');return}
+ const name=prompt('Nome do novo fluxo','Atendimento da minha empresa');
+ if(name===null)return;
+ const f=FLOW.create(name.trim().slice(0,90)||'Novo atendimento');
+ state.flows.push(f);state.selectedId=f.id;selectedNode=null;activeSteps.clear();persist();renderAll();resetTest();
+}
+function duplicateFlow(){
+ if(state.flows.length>=25){notify('Máximo de 25 fluxos neste navegador.');return}
+ const f=JSON.parse(JSON.stringify(current()));
+ f.id=FLOW.create().id;f.name=(f.name+' (cópia)').slice(0,90);f.status='draft';f.updatedAt=new Date().toISOString();
+ state.flows.push(f);state.selectedId=f.id;persist();renderAll();resetTest();
+}
+function deleteFlow(){
+ if(!confirm('Excluir este fluxo e suas conexões do navegador?'))return;
+ state.flows=state.flows.filter(f=>f.id!==state.selectedId);
+ if(!state.flows.length)state.flows=[FLOW.create()];
+ state.selectedId=state.flows[0].id;selectedNode=null;persist();renderAll();resetTest();
+}
+function publishFlow(){
+ const errors=FLOW.validate(current());
+ if(errors.length){showErrors(errors);notify('Corrija as conexões antes de publicar.');$('simulador').scrollIntoView({behavior:'smooth',block:'start'});return}
+ current().status='published';persist();drawStatus();
+ notify('Publicado somente no simulador ✓ (WhatsApp real permanece desligado)');
+ $('errors').innerHTML='';
+}
+function pauseFlow(){current().status='paused';persist();drawStatus();notify('Fluxo pausado. Nenhum WhatsApp foi acionado.')}
+function showErrors(errors){
+ $('errors').innerHTML=errors.length?'<div class="errorList"><strong>Revise o fluxo:</strong><ul>'+errors.slice(0,20).map(msg=>'<li>'+esc(msg)+'</li>').join('')+'</ul></div>':'';
+}
+function renderTest(result){
+ activeSteps=new Set(result.steps.map(s=>s.id));drawBoard();
+ showErrors(result.errors||[]);
+ $('testSteps').innerHTML=result.steps.length?result.steps.map((step,i)=>
+  '<div class="testStep"><b>✓ '+(i+1)+'. '+esc(step.label)+'</b><span>'+esc(step.result)+'</span></div>').join(''):'<div class="empty">O fluxo não pôde ser executado.</div>';
+ $('testChat').innerHTML=result.events.length?result.events.map(m=>{
+  let body=esc(m.text||'');
+  if(m.url&&FLOW.validUrl(m.url)){
+   const url=esc(m.url);
+   if(m.type==='image')body+='<img loading="lazy" alt="Imagem do fluxo" referrerpolicy="no-referrer" src="'+url+'">';
+   if(m.type==='audio')body+='<audio controls preload="none" src="'+url+'"></audio>';
+   if(m.type==='video')body+='<video controls preload="none" src="'+url+'"></video>';
+   if(m.type==='link')body+='<p><a target="_blank" rel="noopener noreferrer" href="'+url+'">'+url+'</a></p>';
+  }
+  return '<div class="bubble'+(m.direction==='out'?' out':m.direction==='note'?' note':'')+'">'+body+'</div>';
+ }).join(''):'<div class="empty">'+(result.waiting?'Aguardando mensagem do cliente. Digite uma mensagem e execute novamente.':'Nenhuma mensagem gerada nesta simulação.')+'</div>';
+ $('testChat').scrollTop=$('testChat').scrollHeight;
+ if(result.ok)notify(result.waiting?'Aguardando mensagem de entrada no simulador':'Teste executado. '+result.steps.length+' etapas percorridas.');
+}
+function runFlow(){const value=$('customerInput').value.trim().slice(0,850);
+ const result=FLOW.simulate(current(),value);
+ renderTest(result);$('simulador').scrollIntoView({behavior:'smooth',block:'start'});
+}
+function resetTest(){activeSteps.clear();drawBoard();$('testSteps').innerHTML='<div class="empty">As etapas aparecerão aqui.</div>';$('testChat').innerHTML='<div class="empty">Clique em Executar simulação para ver as mensagens do fluxo.</div>';$('errors').innerHTML=''}
+function centerBoard(){$('boardWrap').scrollTo({left:0,top:0,behavior:'smooth'})}
+function download(){
+ const payload=JSON.stringify({version:1,flow:current()},null,2);
+ const blob=new Blob([payload],{type:'application/json'}),link=document.createElement('a');
+ link.href=URL.createObjectURL(blob);link.download='convya-fluxo-'+current().id+'.json';
+ document.body.appendChild(link);link.click();link.remove();
+ setTimeout(()=>URL.revokeObjectURL(link.href),1200);
+}
+async function upload(file){
+ if(!file||file.size>200000){notify('Escolha um JSON com até 200 KB.');return}
+ try{
+  const raw=JSON.parse(await file.text());
+  const f=FLOW.cleanFlow(raw.flow||raw);
+  if(state.flows.length>=25)throw Error('Máximo de 25 fluxos');
+  f.id=FLOW.create().id;f.status='draft';f.name=(f.name+' (importado)').slice(0,90);
+  state.flows.push(f);state.selectedId=f.id;selectedNode=null;persist();renderAll();resetTest();notify('Fluxo importado como rascunho');
+ }catch(err){notify('Não foi possível importar: '+err.message)}
+ $('fileInput').value='';
+}
+function setup(){
+ load();
+ const board=$('boardWrap');board.ondragover=e=>{e.preventDefault();e.dataTransfer.dropEffect='copy'};
+ board.ondrop=e=>{
+  e.preventDefault();const type=e.dataTransfer.getData('text/x-convya-block');
+  if(!type||!FLOW.TYPES[type])return;
+  const rect=board.getBoundingClientRect();
+  addNode(type,e.clientX-rect.left+board.scrollLeft-118,e.clientY-rect.top+board.scrollTop-45);
+ };
+ $('flowSelect').onchange=e=>{state.selectedId=e.target.value;selectedNode=null;connecting=null;activeSteps.clear();persist();renderAll();resetTest()};
+ $('saveBtn').onclick=()=>{persist();notify('Rascunho salvo localmente. Nenhum envio real ativado.')};
+ $('testBtn').onclick=runFlow;$('runBtn').onclick=runFlow;
+ $('publishBtn').onclick=publishFlow;$('pauseBtn').onclick=pauseFlow;
+ $('newBtn').onclick=newFlow;$('duplicateBtn').onclick=duplicateFlow;$('deleteBtn').onclick=deleteFlow;
+ $('renameBtn').onclick=()=>{const name=prompt('Nome do fluxo',current().name);if(name!==null&&name.trim()){current().name=name.trim().slice(0,90);edit();renderAll()}};
+ $('resetTestBtn').onclick=resetTest;$('centerBtn').onclick=centerBoard;
+ $('exportBtn').onclick=download;$('importBtn').onclick=()=>$('fileInput').click();
+ $('fileInput').onchange=e=>upload(e.target.files?.[0]);
+ renderAll();
+}
+setup();
+})();
+</script>
+</body></html>
