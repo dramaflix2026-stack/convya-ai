@@ -10,6 +10,9 @@ const waWeb=require('./api/whatsapp-web');
 const virtualClient=require('./api/virtual-client');
 const index=fs.readFileSync(path.join(__dirname,'index.html'));
 const whatsappHtml=fs.readFileSync(path.join(__dirname,'whatsapp.html'));
+const flowsHtml=fs.readFileSync(path.join(__dirname,'fluxos.html'));
+const flowEngineJs=fs.readFileSync(path.join(__dirname,'api/flow-engine.js'));
+
 const safeHeader={
  'X-Content-Type-Options':'nosniff',
  'Referrer-Policy':'no-referrer',
@@ -33,6 +36,16 @@ const server=http.createServer(async(req,res)=>{
  const url=(()=>{try{return new URL(req.url,'http://localhost')}catch{return null}})();
  if(!url)return json(res,400,{error:'URL inválida'});
  const pathname=url.pathname;
+ if(pathname==='/flow-engine.js'){
+  if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Método não permitido'});
+  res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'no-cache',...safeHeader});
+  return res.end(req.method==='HEAD'?undefined:flowEngineJs);
+ }
+ if(pathname==='/fluxos.html'){
+  if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Método não permitido'});
+  res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-cache',...safeHeader});
+  return res.end(req.method==='HEAD'?undefined:flowsHtml);
+ }
  if(pathname==='/'||pathname==='/index.html'||pathname==='/whatsapp.html'){
   if(req.method!=='GET'&&req.method!=='HEAD')return json(res,405,{error:'Método não permitido'});
   const bytes=pathname==='/whatsapp.html'?whatsappHtml:index;
